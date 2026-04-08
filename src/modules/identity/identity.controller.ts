@@ -1,34 +1,63 @@
 import {
   Controller,
   Post,
-  Get,
   Body,
   HttpCode,
   HttpStatus,
+  Get,
 } from '@nestjs/common';
-import { IdentityService, RegisterDto, LoginDto } from './identity.service';
-import { Public, CurrentUser, AuthenticatedUser } from '@app/core';
+import { RegisterDto, LoginDto } from './application/dtos/identity.dto';
+import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
+import { LoginUserUseCase } from './application/use-cases/login-user.use-case';
+import { IdentityQueriesService } from './application/use-cases/queries/identity-queries.service';
 
-@Controller('auth')
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { Roles, CurrentUser, AuthenticatedUser, Public } from '@app/core';
+
+@ApiTags('Identity (Auth)')
+@Controller('identity')
 export class IdentityController {
-  constructor(private readonly identityService: IdentityService) {}
+  constructor(
+    private readonly registerUseCase: RegisterUserUseCase,
+    private readonly loginUseCase: LoginUserUseCase,
+    private readonly queriesService: IdentityQueriesService,
+  ) {}
 
+  @Public()
   @Post('register')
-  @Public()
-  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
   async register(@Body() dto: RegisterDto) {
-    return this.identityService.register(dto);
+    return this.registerUseCase.execute(dto);
   }
 
-  @Post('login')
   @Public()
+  @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({
+    status: 403,
+    description: 'Invalid credentials or suspended account',
+  })
   async login(@Body() dto: LoginDto) {
-    return this.identityService.login(dto);
+    return this.loginUseCase.execute(dto);
   }
 
-  @Get('me')
+  @Get('profile')
+  @ApiBearerAuth('JWT')
+  @Roles('viewer', 'editor', 'admin') // Require any valid role
+  @ApiOperation({ summary: 'Get current logged-in user profile' })
+  @ApiResponse({ status: 200, description: 'Returns user profile' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   async getProfile(@CurrentUser() user: AuthenticatedUser) {
-    return this.identityService.getProfile(user.userId);
+    return this.queriesService.getProfile(user.userId);
   }
 }

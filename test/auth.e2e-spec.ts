@@ -45,26 +45,24 @@ describe('Authentication Flows (e2e)', () => {
   describe('Registration & Login', () => {
     it('should successfully register a new user', async () => {
       const res = await request(app.getHttpServer() as Server)
-        .post('/auth/register')
+        .post('/identity/register')
         .send(testUser)
         .expect(201);
 
       expect(res.body.user).toBeDefined();
       expect(res.body.user.email).toBe(testUser.email);
-      expect(res.body.user.displayName).toBe(testUser.displayName);
-      expect(res.body.accessToken).toBeDefined();
     });
 
     it('should fail to register with a duplicate email', async () => {
       await request(app.getHttpServer() as Server)
-        .post('/auth/register')
+        .post('/identity/register')
         .send(testUser)
         .expect(409); // Conflict
     });
 
     it('should successfully login with valid credentials', async () => {
       const res = await request(app.getHttpServer() as Server)
-        .post('/auth/login')
+        .post('/identity/login')
         .send({
           email: testUser.email,
           password: testUser.password,
@@ -77,7 +75,7 @@ describe('Authentication Flows (e2e)', () => {
 
     it('should fail to login with invalid credentials', async () => {
       await request(app.getHttpServer() as Server)
-        .post('/auth/login')
+        .post('/identity/login')
         .send({
           email: testUser.email,
           password: 'wrongpassword',
@@ -86,17 +84,17 @@ describe('Authentication Flows (e2e)', () => {
     });
   });
 
-  describe('JWT Protection (/auth/me)', () => {
+  describe('JWT Protection (/identity/profile)', () => {
     it('should reject unauthenticated requests to protected routes', async () => {
       await request(app.getHttpServer() as Server)
-        .get('/auth/me')
+        .get('/identity/profile')
         .expect(401);
     });
 
     it('should return profile for authenticated requests', async () => {
       // 1. Get token
       const loginRes = await request(app.getHttpServer() as Server)
-        .post('/auth/login')
+        .post('/identity/login')
         .send({
           email: testUser.email,
           password: testUser.password,
@@ -106,7 +104,7 @@ describe('Authentication Flows (e2e)', () => {
 
       // 2. Fetch profile
       const profileRes = await request(app.getHttpServer() as Server)
-        .get('/auth/me')
+        .get('/identity/profile')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 

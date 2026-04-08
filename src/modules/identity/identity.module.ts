@@ -1,10 +1,25 @@
 import { Module } from '@nestjs/common';
-import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigService, ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+
 import { IdentityController } from './identity.controller';
-import { IdentityService } from './identity.service';
 import { JwtStrategy } from '@app/core';
+
+// Use Cases & Queries
+import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
+import { LoginUserUseCase } from './application/use-cases/login-user.use-case';
+import { IdentityQueriesService } from './application/use-cases/queries/identity-queries.service';
+
+// Repository Ports
+import { USER_REPOSITORY } from './domain/repositories/user.repository';
+import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
+
+// Security Ports
+import { PASSWORD_SERVICE } from './application/security/password.service';
+import { TOKEN_SERVICE } from './application/security/token.service';
+import { BcryptPasswordService } from './infrastructure/security/bcrypt-password.service';
+import { NestJwtTokenService } from './infrastructure/security/nest-jwt-token.service';
 
 @Module({
   imports: [
@@ -12,19 +27,38 @@ import { JwtStrategy } from '@app/core';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET')!,
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>(
-            'JWT_ACCESS_EXPIRATION',
-          )! as JwtSignOptions['expiresIn'],
-          algorithm: 'HS256' as const, // Use RS256 in production with key pair
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION') as any,
+          algorithm: 'HS256',
         },
       }),
     }),
   ],
   controllers: [IdentityController],
-  providers: [IdentityService, JwtStrategy],
-  exports: [IdentityService, JwtModule],
+  providers: [
+    // Application
+    RegisterUserUseCase,
+    LoginUserUseCase,
+    IdentityQueriesService,
+
+    // Infrastructure Adapters
+    {
+      provide: USER_REPOSITORY,
+      useClass: PrismaUserRepository,
+    },
+    {
+      provide: PASSWORD_SERVICE,
+      useClass: BcryptPasswordService,
+    },
+    {
+      provide: TOKEN_SERVICE,
+      useClass: NestJwtTokenService,
+    },
+    JwtStrategy,
+  ],
+  exports: [JwtModule],
 })
 export class IdentityModule {}

@@ -108,14 +108,15 @@ map-history/
 
 ## 🏗️ Architecture
 
-**Modular Monolith** with 4 bounded contexts:
+**Modular Monolith** with 4 bounded contexts. 
+*Note: The platform is currently undergoing a refactoring phase to migrate from a traditional n-tier structure towards **Clean Architecture / Domain-Driven Design (DDD)**.*
 
-| Module | Responsibility | Database Schema |
-|--------|---------------|----------------|
-| **Identity** | Auth, users, RBAC | `identity.*` |
-| **Geometry** | Feature CRUD, PostGIS spatial ops | `geometry.*` |
-| **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` |
-| **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` |
+| Module | Responsibility | Database Schema | Architecture Status |
+|--------|---------------|----------------|-------------------|
+| **Identity** | Auth, users, RBAC | `identity.*` | ✅ Clean Architecture (DDD + CQRS) |
+| **Geometry** | Feature CRUD, PostGIS spatial ops | `geometry.*` | ✅ Clean Architecture (DDD + CQRS) |
+| **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` | 🔄 Legacy (Pending Refactor) |
+| **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` | 🔄 Legacy (Pending Refactor) |
 
 See [Architecture Docs](./docs/) for detailed design.
 

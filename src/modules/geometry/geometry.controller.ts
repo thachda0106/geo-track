@@ -9,80 +9,150 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import {
-  GeometryService,
   CreateFeatureDto,
   UpdateFeatureDto,
   FeatureListQuery,
-} from './geometry.service';
-import { SpatialQueryService, SpatialQueryDto } from './spatial-query.service';
+} from './application/dtos/geometry.dto';
+import { SpatialQueryDto } from './application/dtos/spatial-query.dto';
+import { CreateFeatureUseCase } from './application/use-cases/create-feature.use-case';
+import { UpdateFeatureUseCase } from './application/use-cases/update-feature.use-case';
+import { DeleteFeatureUseCase } from './application/use-cases/delete-feature.use-case';
+import {
+  FEATURE_QUERIES,
+  SPATIAL_QUERIES,
+  IFeatureQueries,
+  ISpatialQueries,
+} from './application/use-cases/queries/geometry-queries.interface';
 import { Roles, CurrentUser, AuthenticatedUser } from '@app/core';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+} from '@nestjs/swagger';
 
+@ApiTags('Features')
+@ApiBearerAuth('JWT')
 @Controller('features')
 export class GeometryController {
   constructor(
-    private readonly geometryService: GeometryService,
-    private readonly spatialQueryService: SpatialQueryService,
+    private readonly createFeatureUseCase: CreateFeatureUseCase,
+    private readonly updateFeatureUseCase: UpdateFeatureUseCase,
+    private readonly deleteFeatureUseCase: DeleteFeatureUseCase,
+    @Inject(FEATURE_QUERIES)
+    private readonly featureQueries: IFeatureQueries,
+    @Inject(SPATIAL_QUERIES)
+    private readonly spatialQueries: ISpatialQueries,
   ) {}
 
   @Post()
   @Roles('editor', 'admin')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a new geometric feature' })
+  @ApiBody({ type: CreateFeatureDto })
+  @ApiResponse({
+    status: 201,
+    description: 'The feature has been successfully created.',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid geometry payload.' })
   async create(
     @Body() dto: CreateFeatureDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.geometryService.createFeature(dto, user.userId);
+    return this.createFeatureUseCase.execute(dto, user.userId);
   }
 
   @Get()
+  @ApiOperation({ summary: 'List features with spatial bounds filters' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a paginated list of features',
+  })
   async list(@Query() query: FeatureListQuery) {
-    return this.geometryService.listFeatures(query);
+    return this.featureQueries.listFeatures(query);
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a single feature by ID' })
+  @ApiResponse({ status: 200, description: 'Feature found' })
+  @ApiResponse({ status: 404, description: 'Feature not found' })
   async findOne(@Param('id') id: string) {
-    return this.geometryService.getFeature(id);
+    return this.featureQueries.getFeature(id);
   }
 
   @Put(':id')
   @Roles('editor', 'admin')
+  @ApiOperation({
+    summary: 'Update a geometric feature',
+    description: 'Requires expectedVersion for optimistic locking',
+  })
+  @ApiBody({ type: UpdateFeatureDto })
+  @ApiResponse({ status: 200, description: 'Feature successfully updated' })
+  @ApiResponse({ status: 409, description: 'Conflict: version mismatch' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateFeatureDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.geometryService.updateFeature(id, dto, user.userId);
+    return this.updateFeatureUseCase.execute(id, dto, user.userId);
   }
 
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft delete a feature' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { expectedVersion: { type: 'integer' } },
+    },
+  })
+  @ApiResponse({ status: 204, description: 'Successfully deleted' })
+  @ApiResponse({ status: 409, description: 'Conflict: version mismatch' })
   async remove(
     @Param('id') id: string,
     @Body('expectedVersion') expectedVersion: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    await this.geometryService.deleteFeature(id, expectedVersion, user.userId);
+    await this.deleteFeatureUseCase.execute(id, expectedVersion, user.userId);
   }
 
   @Post(':id/buffer')
+  @ApiOperation({ summary: 'Calculate buffer polygon for feature' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { distanceMeters: { type: 'number' } },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Buffer calculated' })
   async buffer(
     @Param('id') id: string,
     @Body('distanceMeters') distanceMeters: number,
   ) {
-    return this.spatialQueryService.bufferFeature(id, distanceMeters);
+    return this.spatialQueries.bufferFeature(id, distanceMeters);
   }
 }
 
 // Separate controller for spatial queries (different path)
+@ApiTags('Spatial')
+@ApiBearerAuth('JWT')
 @Controller('spatial')
 export class SpatialController {
-  constructor(private readonly spatialQueryService: SpatialQueryService) {}
+  constructor(
+    @Inject(SPATIAL_QUERIES)
+    private readonly spatialQueries: ISpatialQueries,
+  ) {}
 
   @Post('query')
+  @ApiOperation({ summary: 'Execute raw spatial query (PostGIS)' })
+  @ApiBody({ type: SpatialQueryDto })
+  @ApiResponse({ status: 201, description: 'Query results returned' })
   async query(@Body() dto: SpatialQueryDto) {
-    return this.spatialQueryService.executeSpatialQuery(dto);
+    return this.spatialQueries.executeSpatialQuery(dto);
   }
 }

@@ -3,13 +3,15 @@ import { PrismaService, PrismaModule, OutboxModule } from '@app/core';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { VersioningModule } from '../src/modules/versioning/versioning.module';
-import { VersioningService } from '../src/modules/versioning/versioning.service';
+import { VersioningQueriesService } from '../src/modules/versioning/application/use-cases/queries/versioning-queries.service';
+import { CreateVersionUseCase } from '../src/modules/versioning/application/use-cases/create-version.use-case';
 import { v4 as uuidv4 } from 'uuid';
 
 describe('Versioning Integration (Integration)', () => {
   let moduleRef: TestingModule;
   let prisma: PrismaService;
-  let versioningService: VersioningService;
+  let queriesService: VersioningQueriesService;
+  let createVersionUseCase: CreateVersionUseCase;
   let testUserId: string;
   let testFeatureId: string;
 
@@ -25,7 +27,11 @@ describe('Versioning Integration (Integration)', () => {
     }).compile();
 
     prisma = moduleRef.get<PrismaService>(PrismaService);
-    versioningService = moduleRef.get<VersioningService>(VersioningService);
+    queriesService = moduleRef.get<VersioningQueriesService>(
+      VersioningQueriesService,
+    );
+    createVersionUseCase =
+      moduleRef.get<CreateVersionUseCase>(CreateVersionUseCase);
 
     // Setup Test Admin User
     await prisma.$executeRawUnsafe(
@@ -62,7 +68,7 @@ describe('Versioning Integration (Integration)', () => {
         coordinates: [100.0, 0.0],
       };
 
-      await versioningService.createInitialVersion({
+      await createVersionUseCase.createInitialVersion({
         featureId: testFeatureId,
         geometry: geoJson,
         properties: { name: 'Initial Version' },
@@ -70,7 +76,7 @@ describe('Versioning Integration (Integration)', () => {
         authorId: testUserId,
       });
 
-      const history = await versioningService.listVersions(testFeatureId, {});
+      const history = await queriesService.listVersions(testFeatureId, {});
       expect(history.data.length).toBe(1);
       expect(history.data[0].versionNumber).toBe(1);
       expect(history.data[0].changeType).toBe('created');
@@ -84,7 +90,7 @@ describe('Versioning Integration (Integration)', () => {
         coordinates: [101.0, 1.0],
       };
 
-      await versioningService.createVersionSnapshot({
+      await createVersionUseCase.createVersionSnapshot({
         featureId: testFeatureId,
         versionNumber: 2,
         geometry: geoJson,
@@ -93,7 +99,7 @@ describe('Versioning Integration (Integration)', () => {
         authorId: testUserId,
       });
 
-      const history = await versioningService.listVersions(testFeatureId, {});
+      const history = await queriesService.listVersions(testFeatureId, {});
       expect(history.data.length).toBe(2);
 
       const v2 = history.data.find((h) => h.versionNumber === 2);

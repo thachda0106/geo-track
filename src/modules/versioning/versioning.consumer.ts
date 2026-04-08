@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InboxService } from '@app/core';
-import { VersioningService } from './versioning.service';
+import { CreateVersionUseCase } from './application/use-cases/create-version.use-case';
 
 interface FeatureCreatedEvent {
   _correlationId: string;
@@ -31,7 +31,7 @@ export class VersioningConsumer {
 
   constructor(
     private readonly inboxService: InboxService,
-    private readonly versioningService: VersioningService,
+    private readonly createVersionUseCase: CreateVersionUseCase,
   ) {}
 
   @OnEvent('FeatureCreated')
@@ -43,7 +43,7 @@ export class VersioningConsumer {
       this.logger.log(
         `Processing FeatureCreated: Recording V1 for feature ${event.featureId}`,
       );
-      await this.versioningService.createInitialVersion({
+      await this.createVersionUseCase.createInitialVersion({
         featureId: event.featureId,
         geometry: event.geometry,
         properties: event.properties,
@@ -62,7 +62,7 @@ export class VersioningConsumer {
         `Processing FeatureUpdated: Recording V${event.versionNumber} for feature ${event.featureId}`,
       );
       // Create full snapshot version based on event payload
-      await this.versioningService.createVersionSnapshot({
+      await this.createVersionUseCase.createVersionSnapshot({
         featureId: event.featureId,
         versionNumber: event.versionNumber,
         geometry: event.geometry,
