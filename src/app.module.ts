@@ -22,6 +22,10 @@ import { GeometryModule } from './modules/geometry/geometry.module';
 import { VersioningModule } from './modules/versioning/versioning.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 
+// Events & Scheduling
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
+
 /**
  * Root Application Module.
  *
@@ -44,6 +48,14 @@ import { TrackingModule } from './modules/tracking/tracking.module';
  */
 @Module({
   imports: [
+    // ─── Events & Background Tasks ─────────────────────
+    EventEmitterModule.forRoot({
+      global: true,
+      wildcard: true,
+      delimiter: '.',
+    }),
+    ScheduleModule.forRoot(),
+
     // ─── Core Infrastructure (global) ──────────────────
     AppConfigModule,
     LoggerModule,

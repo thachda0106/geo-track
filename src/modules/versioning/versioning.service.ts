@@ -243,4 +243,62 @@ export class VersioningService {
       snapshot: targetVersion.snapshot,
     };
   }
+
+  /**
+   * Create the initial version (V1) when a feature is first created.
+   * Called by the event consumer.
+   */
+  async createInitialVersion(data: {
+    featureId: string;
+    geometry: any;
+    properties: Record<string, any>;
+    name: string;
+    authorId: string;
+  }) {
+    await this.prisma.$queryRawUnsafe(
+      `INSERT INTO versioning.versions
+        (id, feature_id, version_number, change_type,
+         snapshot_geometry, snapshot_properties, snapshot_name,
+         author_id, message)
+      VALUES
+        (gen_random_uuid(), $1::uuid, 1, 'created',
+         ST_SetSRID(ST_GeomFromGeoJSON($2), 4326),
+         $3::jsonb, $4, $5::uuid, 'Initial creation')`,
+      data.featureId,
+      JSON.stringify(data.geometry),
+      JSON.stringify(data.properties || {}),
+      data.name,
+      data.authorId,
+    );
+  }
+
+  /**
+   * Create a new version snapshot for an update.
+   * Called by the event consumer.
+   */
+  async createVersionSnapshot(data: {
+    featureId: string;
+    versionNumber: number;
+    geometry: any;
+    properties: Record<string, any>;
+    name: string;
+    authorId: string;
+  }) {
+    await this.prisma.$queryRawUnsafe(
+      `INSERT INTO versioning.versions
+        (id, feature_id, version_number, change_type,
+         snapshot_geometry, snapshot_properties, snapshot_name,
+         author_id, message)
+      VALUES
+        (gen_random_uuid(), $1::uuid, $2, 'updated',
+         ST_SetSRID(ST_GeomFromGeoJSON($3), 4326),
+         $4::jsonb, $5, $6::uuid, 'Feature updated')`,
+      data.featureId,
+      data.versionNumber,
+      JSON.stringify(data.geometry),
+      JSON.stringify(data.properties || {}),
+      data.name,
+      data.authorId,
+    );
+  }
 }

@@ -7,7 +7,7 @@ services:
     container_name: geotrack-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: geotrack
       POSTGRES_PASSWORD: geotrack_dev
@@ -29,7 +29,7 @@ services:
     container_name: geotrack-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data

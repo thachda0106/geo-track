@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { OutboxService } from './outbox.service';
 import { InboxService } from './inbox.service';
+import { OutboxRelayService } from './outbox-relay.service';
 
 /**
  * Outbox/Inbox Module.
@@ -9,7 +10,7 @@ import { InboxService } from './inbox.service';
  */
 @Global()
 @Module({
-  providers: [OutboxService, InboxService],
+  providers: [OutboxService, InboxService, OutboxRelayService],
   exports: [OutboxService, InboxService],
 })
 export class OutboxModule {}
