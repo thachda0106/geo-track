@@ -115,8 +115,8 @@ map-history/
 |--------|---------------|----------------|-------------------|
 | **Identity** | Auth, users, RBAC | `identity.*` | ✅ Clean Architecture (DDD + CQRS) |
 | **Geometry** | Feature CRUD, PostGIS spatial ops | `geometry.*` | ✅ Clean Architecture (DDD + CQRS) |
-| **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` | 🔄 Legacy (Pending Refactor) |
-| **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` | 🔄 Legacy (Pending Refactor) |
+| **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` | ✅ Clean Architecture (DDD + CQRS) |
+| **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` | ✅ Clean Architecture (DDD + CQRS) |
 
 See [Architecture Docs](./docs/) for detailed design.
 
