@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
+.git/
+.gitignore
+.idea/
+.vscode/
+*.md
+docs/
+postgres_data/
+redis_data/
+redpanda_data/
+tmp/

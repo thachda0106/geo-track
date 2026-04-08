@@ -1,0 +1,123 @@
+services:
+  # ═══════════════════════════════════════════════════════
+  # PostgreSQL 16 + PostGIS 3.4 + TimescaleDB
+  # ═══════════════════════════════════════════════════════
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    container_name: geotrack-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: geotrack
+      POSTGRES_PASSWORD: geotrack_dev
+      POSTGRES_DB: geotrack
+    volumes:
+      - postgres_data:/home/postgres/pgdata/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geotrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════
+  # Redis 7 — Cache + Pub/Sub + Rate Limiter
+  # ═══════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: geotrack-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════
+  # Redpanda (Kafka-compatible, lighter for dev)
+  # ═══════════════════════════════════════════════════════
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: geotrack-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'HEALTHY'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════
+  # Redpanda Console (Kafka UI for dev)
+  # ═══════════════════════════════════════════════════════
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: geotrack-console
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════════════
+  # GeoTrack Application (optional — for containerized dev)
+  # Uncomment to run the app in Docker instead of `npm run start:dev`
+  # ═══════════════════════════════════════════════════════
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: geotrack-app
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NODE_ENV: development
+  #     PORT: 3000
+  #     DATABASE_URL: postgresql://geotrack:geotrack_dev@postgres:5432/geotrack
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     KAFKA_BROKERS: redpanda:29092
+  #     JWT_SECRET: dev-secret-change-in-production-minimum-32-chars!!
+  #     JWT_ACCESS_EXPIRATION: 15m
+  #     JWT_REFRESH_EXPIRATION: 7d
+  #     CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+  #     LOG_LEVEL: debug
+  #     LOG_PRETTY: "true"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  redpanda_data:

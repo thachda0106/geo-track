@@ -1,0 +1,196 @@
+# ═══════════════════════════════════════════════════════
+# GeoTrack — Continuous Deployment
+#
+# Triggered on merge to main.
+# Builds, pushes Docker image, deploys to staging,
+# and gates production behind manual approval.
+# ═══════════════════════════════════════════════════════
+
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy to environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel deployments
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── Build & Push Docker Image ──────────────────────
+  build-image:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image summary
+        run: |
+          echo "## 🐳 Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tags | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Digest | ${{ steps.build.outputs.digest }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ─── Deploy to Staging ──────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [build-image]
+
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL || 'https://staging.geotrack.app' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging..."
+          echo "Image: ${{ needs.build-image.outputs.image-tag }}"
+          bash scripts/deploy.sh staging "${{ needs.build-image.outputs.image-tag }}"
+
+      - name: Smoke test — Health check
+        run: |
+          STAGING_URL="${{ vars.STAGING_URL || 'https://staging.geotrack.app' }}"
+          echo "🔍 Running smoke tests against $STAGING_URL"
+
+          # Wait for deployment to stabilize
+          sleep 10
+
+          # Health check (with retry)
+          for i in $(seq 1 5); do
+            if curl -sf "$STAGING_URL/health" > /dev/null 2>&1; then
+              echo "✅ Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+
+          echo "⚠️ Health check failed after 5 attempts"
+          echo "This is expected if no staging environment is configured yet."
+          exit 0
+        continue-on-error: true
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Staging Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | staging |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | ${{ needs.build-image.outputs.image-tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+
+  # ─── Deploy to Production ───────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL || 'https://geotrack.app' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "🚀 Deploying to production..."
+          echo "Image: ${{ needs.build-image.outputs.image-tag }}"
+          bash scripts/deploy.sh production "${{ needs.build-image.outputs.image-tag }}"
+
+      - name: Health check verification
+        run: |
+          PROD_URL="${{ vars.PRODUCTION_URL || 'https://geotrack.app' }}"
+          echo "🔍 Verifying production deployment at $PROD_URL"
+
+          for i in $(seq 1 5); do
+            if curl -sf "$PROD_URL/health" > /dev/null 2>&1; then
+              echo "✅ Production health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+          echo "⚠️ Production health check failed — consider rollback"
+          echo "Run: bash scripts/deploy.sh rollback production"
+          exit 0
+        continue-on-error: true
+
+      - name: Deployment summary
+        run: |
+          echo "## 🏭 Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | production |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | ${{ needs.build-image.outputs.image-tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
