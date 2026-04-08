@@ -1,6 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { RetryService } from './retry.service';
 
+import { CircuitBreakerService } from './circuit-breaker.service';
+
 /**
  * Resilience Module.
  * Provides retry with backoff and timeout patterns.
@@ -10,7 +12,7 @@ import { RetryService } from './retry.service';
  */
 @Global()
 @Module({
-  providers: [RetryService],
-  exports: [RetryService],
+  providers: [RetryService, CircuitBreakerService],
+  exports: [RetryService, CircuitBreakerService],
 })
 export class ResilienceModule {}

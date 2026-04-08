@@ -76,9 +76,13 @@ export class InboxService {
   }
 
   /**
-   * Process an event idempotently.
+   * Process an event idempotently (atomic — no TOCTOU race).
    *
-   * Combines check + execute + mark in one call.
+   * Uses INSERT ... ON CONFLICT DO NOTHING to atomically claim the event.
+   * If the insert succeeds (row didn't exist), we process the event.
+   * If the insert is a no-op (row already existed), we skip.
+   * If the handler throws, we delete the inbox entry so the event can be retried.
+   *
    * Returns true if the event was processed, false if it was a duplicate.
    */
   async processOnce(
@@ -86,7 +90,18 @@ export class InboxService {
     eventType: string,
     handler: () => Promise<void>,
   ): Promise<boolean> {
-    if (await this.isProcessed(eventId)) {
+    // Atomic claim: INSERT succeeds only if event_id doesn't exist yet
+    const result = await this.prisma.$queryRawUnsafe<{ inserted: boolean }[]>(
+      `INSERT INTO versioning.inbox (event_id, event_type, processed_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (event_id) DO NOTHING
+       RETURNING TRUE as inserted`,
+      eventId,
+      eventType,
+    );
+
+    if (result.length === 0) {
+      // Row already existed — duplicate event, skip
       this.logger.debug(
         `Inbox: skipping duplicate ${eventType} (${eventId})`,
         'InboxService',
@@ -94,8 +109,24 @@ export class InboxService {
       return false;
     }
 
-    await handler();
-    await this.markProcessed(eventId, eventType);
-    return true;
+    try {
+      await handler();
+      this.logger.debug(
+        `Inbox: processed ${eventType} (${eventId})`,
+        'InboxService',
+      );
+      return true;
+    } catch (error) {
+      // Handler failed — rollback the inbox entry so event can be retried
+      this.logger.warn(
+        `Inbox: handler failed for ${eventType} (${eventId}), releasing for retry`,
+        'InboxService',
+      );
+      await this.prisma.$queryRawUnsafe(
+        `DELETE FROM versioning.inbox WHERE event_id = $1`,
+        eventId,
+      );
+      throw error;
+    }
   }
 }

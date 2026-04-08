@@ -1,0 +1,25 @@
+version: '3.8'
+
+# ═══════════════════════════════════════════════════════
+# GeoTrack — Chaos Engineering Environment
+#
+# Use this overlay to run the stack with Toxiproxy for
+# simulating network failures, latency, and connection drops.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.chaos.yml up
+# ═══════════════════════════════════════════════════════
+
+services:
+  # ─── Toxiproxy ──────────────────────────────────────
+  # Provides API on 8474 to dynamically configure proxies
+  # Example: proxy 5432 down to simulate DB outage
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:latest
+    container_name: geotrack-toxiproxy
+    ports:
+      - "8474:8474" # Admin API
+      - "5432:5432" # Proxied Postgres
+      - "6379:6379" # Proxied Redis
+    # The application should connect to toxiproxy instead of direct services
+    # e.g. set DATABASE_URL to toxiproxy:5432 instead of postgres:5432

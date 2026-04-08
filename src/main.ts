@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import * as Sentry from '@sentry/nestjs';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { AppModule } from './app.module';
 import { AppLoggerService } from '@app/core';
 
@@ -14,6 +16,18 @@ async function bootstrap() {
   // ─── Get services ────────────────────────────────────
   const configService = app.get(ConfigService);
   const logger = app.get(AppLoggerService);
+
+  // ─── Sentry Initialization ───────────────────────────
+  const sentryDsn = configService.get<string>('SENTRY_DSN');
+  if (sentryDsn) {
+    Sentry.init({
+      dsn: sentryDsn,
+      integrations: [nodeProfilingIntegration()],
+      tracesSampleRate: 0.1,
+      profilesSampleRate: 0.1,
+      environment: configService.get<string>('NODE_ENV'),
+    });
+  }
 
   // Use structured logger
   app.useLogger(logger);
@@ -76,6 +90,11 @@ async function bootstrap() {
 
     logger.log(`📚 Swagger docs: http://localhost:${configService.get('PORT')}/docs`, 'Bootstrap');
   }
+
+  // ─── Graceful Shutdown ─────────────────────────────
+  // Allows in-flight requests to drain on SIGTERM/SIGINT
+  // and triggers onModuleDestroy() hooks (e.g., PrismaService.$disconnect())
+  app.enableShutdownHooks();
 
   // ─── Start Server ────────────────────────────────────
   const port = configService.get<number>('PORT', 3000);

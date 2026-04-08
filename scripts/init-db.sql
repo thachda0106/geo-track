@@ -1,11 +1,12 @@
 -- ============================================================
 -- GeoTrack Database Initialization
--- Runs on first container startup
+-- Runs on first container startup (via docker-entrypoint-initdb.d)
 -- ============================================================
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 -- Create schemas (one per bounded context)
 CREATE SCHEMA IF NOT EXISTS identity;
@@ -25,5 +26,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA geometry GRANT ALL ON TABLES TO geotrack;
 ALTER DEFAULT PRIVILEGES IN SCHEMA versioning GRANT ALL ON TABLES TO geotrack;
 ALTER DEFAULT PRIVILEGES IN SCHEMA tracking GRANT ALL ON TABLES TO geotrack;
 
--- Verify PostGIS
+-- Verify extensions
 SELECT PostGIS_Version();
+SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';

@@ -164,7 +164,14 @@ export class GeometryService {
     }
 
     const whereClause = conditions.join(' AND ');
-    const orderBy = `${query.sort || 'updated_at'} ${query.order || 'desc'}`;
+
+    // Whitelist ORDER BY to prevent injection
+    const ALLOWED_SORT_COLUMNS = ['updated_at', 'created_at', 'name'] as const;
+    const sortColumn = (ALLOWED_SORT_COLUMNS as readonly string[]).includes(query.sort || '')
+      ? query.sort
+      : 'updated_at';
+    const orderDirection = query.order === 'asc' ? 'ASC' : 'DESC';
+    const orderBy = `${sortColumn} ${orderDirection}`;
 
     const features = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT id, name, description, geometry_type,
@@ -216,32 +223,57 @@ export class GeometryService {
         throw new ConflictError('Feature', current.current_version, dto.expectedVersion);
       }
 
-      // 2. Build update SET clause dynamically
-      const sets: string[] = [
-        `current_version = ${current.current_version + 1}`,
-        `updated_by = '${userId}'::uuid`,
-        `updated_at = NOW()`,
-      ];
+      // 2. Build parameterized update SET clause
+      const sets: string[] = [];
+      const updateParams: unknown[] = [id]; // $1 = id (for WHERE clause)
+      let paramIdx = 2;
 
-      if (dto.name !== undefined) sets.push(`name = '${dto.name}'`);
-      if (dto.description !== undefined) sets.push(`description = '${dto.description}'`);
-      if (dto.properties !== undefined) sets.push(`properties = '${JSON.stringify(dto.properties)}'::jsonb`);
-      if (dto.tags !== undefined) sets.push(`tags = ARRAY[${dto.tags.map((t) => `'${t}'`).join(',')}]::text[]`);
+      // Always update version, updatedBy, updatedAt
+      sets.push(`current_version = $${paramIdx}`);
+      updateParams.push(current.current_version + 1);
+      paramIdx++;
 
-      let geometryUpdate = '';
+      sets.push(`updated_by = $${paramIdx}::uuid`);
+      updateParams.push(userId);
+      paramIdx++;
+
+      sets.push(`updated_at = NOW()`);
+
+      if (dto.name !== undefined) {
+        sets.push(`name = $${paramIdx}`);
+        updateParams.push(dto.name);
+        paramIdx++;
+      }
+      if (dto.description !== undefined) {
+        sets.push(`description = $${paramIdx}`);
+        updateParams.push(dto.description);
+        paramIdx++;
+      }
+      if (dto.properties !== undefined) {
+        sets.push(`properties = $${paramIdx}::jsonb`);
+        updateParams.push(JSON.stringify(dto.properties));
+        paramIdx++;
+      }
+      if (dto.tags !== undefined) {
+        sets.push(`tags = $${paramIdx}::text[]`);
+        updateParams.push(dto.tags);
+        paramIdx++;
+      }
       if (dto.geometry) {
-        geometryUpdate = `, geometry = ST_SetSRID(ST_GeomFromGeoJSON('${JSON.stringify(dto.geometry)}'), 4326)`;
+        sets.push(`geometry = ST_SetSRID(ST_GeomFromGeoJSON($${paramIdx}), 4326)`);
+        updateParams.push(JSON.stringify(dto.geometry));
+        paramIdx++;
       }
 
-      // 3. Update feature
+      // 3. Update feature (fully parameterized)
       const [updated] = await tx.$queryRawUnsafe<any[]>(
         `UPDATE geometry.features
-        SET ${sets.join(', ')}${geometryUpdate}
+        SET ${sets.join(', ')}
         WHERE id = $1::uuid
         RETURNING id, name, description, geometry_type,
           ST_AsGeoJSON(geometry)::json as geometry,
           properties, tags, current_version, updated_by, updated_at`,
-        id,
+        ...updateParams,
       );
 
       // 4. Outbox event

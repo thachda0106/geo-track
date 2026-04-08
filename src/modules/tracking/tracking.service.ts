@@ -184,19 +184,29 @@ export class TrackingService {
       throw new BusinessRuleError('Session is not active');
     }
 
-    // Batch insert via raw SQL for TimescaleDB hypertable
-    const values = dto.points
-      .map(
-        (p) =>
-          `('${p.timestamp}'::timestamptz, '${dto.sessionId}'::uuid, '${session.deviceId}'::uuid, ${p.lat}, ${p.lng}, ${p.altitude ?? 'NULL'}, ${p.speed ?? 'NULL'}, ${p.bearing ?? 'NULL'}, ${p.accuracy ?? 'NULL'})`,
-      )
-      .join(',\n');
+    // Batch insert via raw SQL for TimescaleDB hypertable (parameterized)
+    const values: unknown[] = [];
+    const placeholders: string[] = [];
+    let paramIdx = 1;
 
-    await this.prisma.$queryRawUnsafe(`
-      INSERT INTO tracking.location_points
+    for (const p of dto.points) {
+      placeholders.push(
+        `($${paramIdx}::timestamptz, $${paramIdx + 1}::uuid, $${paramIdx + 2}::uuid, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8})`
+      );
+      values.push(
+        p.timestamp, dto.sessionId, session.deviceId,
+        p.lat, p.lng,
+        p.altitude ?? null, p.speed ?? null, p.bearing ?? null, p.accuracy ?? null,
+      );
+      paramIdx += 9;
+    }
+
+    await this.prisma.$queryRawUnsafe(
+      `INSERT INTO tracking.location_points
         (time, session_id, device_id, lat, lng, altitude, speed, bearing, accuracy)
-      VALUES ${values}
-    `);
+      VALUES ${placeholders.join(', ')}`,
+      ...values,
+    );
 
     // Update session stats
     const lastPoint = dto.points[dto.points.length - 1];
@@ -220,24 +230,42 @@ export class TrackingService {
     const limit = Math.min(query.limit || 1000, 5000);
     const table = this.getLocationTable(query.resolution);
 
-    const conditions: string[] = [`session_id = '${sessionId}'::uuid`];
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+    let paramIdx = 1;
 
-    if (query.from) conditions.push(`time >= '${query.from}'::timestamptz`);
-    if (query.to) conditions.push(`time <= '${query.to}'::timestamptz`);
+    conditions.push(`session_id = $${paramIdx}::uuid`);
+    params.push(sessionId);
+    paramIdx++;
+
+    if (query.from) {
+      conditions.push(`time >= $${paramIdx}::timestamptz`);
+      params.push(query.from);
+      paramIdx++;
+    }
+    if (query.to) {
+      conditions.push(`time <= $${paramIdx}::timestamptz`);
+      params.push(query.to);
+      paramIdx++;
+    }
 
     let selectFields: string;
-    if (query.resolution === 'raw' || !query.resolution) {
+    const isRaw = query.resolution === 'raw' || !query.resolution;
+    if (isRaw) {
       selectFields = 'time as timestamp, lat, lng, altitude, speed, bearing, accuracy';
     } else {
       selectFields = 'bucket as timestamp, avg_lat as lat, avg_lng as lng, avg_speed as speed, point_count';
     }
 
+    params.push(limit);
+
     const locations = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT ${selectFields}
       FROM ${table}
       WHERE ${conditions.join(' AND ')}
-      ORDER BY ${query.resolution === 'raw' || !query.resolution ? 'time' : 'bucket'} ASC
-      LIMIT ${limit}`,
+      ORDER BY ${isRaw ? 'time' : 'bucket'} ASC
+      LIMIT $${paramIdx}`,
+      ...params,
     );
 
     return {
@@ -253,13 +281,26 @@ export class TrackingService {
    * Get tracking trail as GeoJSON LineString.
    */
   async getTrail(sessionId: string, from?: string, to?: string) {
-    const conditions: string[] = [
-      `session_id = '${sessionId}'::uuid`,
-      `is_filtered = FALSE`,
-    ];
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+    let paramIdx = 1;
 
-    if (from) conditions.push(`time >= '${from}'::timestamptz`);
-    if (to) conditions.push(`time <= '${to}'::timestamptz`);
+    conditions.push(`session_id = $${paramIdx}::uuid`);
+    params.push(sessionId);
+    paramIdx++;
+
+    conditions.push(`is_filtered = FALSE`);
+
+    if (from) {
+      conditions.push(`time >= $${paramIdx}::timestamptz`);
+      params.push(from);
+      paramIdx++;
+    }
+    if (to) {
+      conditions.push(`time <= $${paramIdx}::timestamptz`);
+      params.push(to);
+      paramIdx++;
+    }
 
     const [result] = await this.prisma.$queryRawUnsafe<any[]>(
       `SELECT
@@ -271,6 +312,7 @@ export class TrackingService {
         AVG(speed) as avg_speed
       FROM tracking.location_points
       WHERE ${conditions.join(' AND ')}`,
+      ...params,
     );
 
     return {

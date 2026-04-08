@@ -117,7 +117,71 @@ services:
   #     timeout: 5s
   #     retries: 5
 
+  # ═══════════════════════════════════════════════════════
+  # PgBouncer — Connection Pooler
+  # Sits between app and PostgreSQL to manage connections.
+  # In transaction mode: 200 app connections → 20 DB connections.
+  # ═══════════════════════════════════════════════════════
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: geotrack-pgbouncer
+    restart: unless-stopped
+    ports:
+      - "6432:6432"
+    environment:
+      DATABASE_URL: postgres://geotrack:geotrack_dev@postgres:5432/geotrack
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      SERVER_RESET_QUERY: DISCARD ALL
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U geotrack || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════
+  # Grafana Loki — Log Aggregation
+  # Accepts logs via HTTP push API (port 3100)
+  # ═══════════════════════════════════════════════════════
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: geotrack-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+
+  # ═══════════════════════════════════════════════════════
+  # Grafana — Dashboards & Visualization
+  # Auto-provisions Loki as datasource
+  # ═══════════════════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: geotrack-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./scripts/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    depends_on:
+      - loki
+
 volumes:
   postgres_data:
   redis_data:
   redpanda_data:
+  loki_data:
+  grafana_data:

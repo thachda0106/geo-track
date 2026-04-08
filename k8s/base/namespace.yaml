@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: geotrack
+  labels:
+    app.kubernetes.io/name: geotrack
+    app.kubernetes.io/part-of: geotrack-platform

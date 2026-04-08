@@ -17,6 +17,8 @@ export interface OutboxRecord extends OutboxEvent {
   id: bigint;
   createdAt: Date;
   publishedAt: Date | null;
+  retry_count: number;
+  max_retries: number;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -95,7 +97,7 @@ export class OutboxService {
   ): Promise<OutboxRecord[]> {
     return tx.$queryRawUnsafe(
       `SELECT id, event_type, aggregate_id, aggregate_type, payload,
-              correlation_id, created_at, published_at
+              correlation_id, created_at, published_at, retry_count, max_retries
        FROM ${schema}.outbox
        WHERE published_at IS NULL
        ORDER BY id ASC
@@ -120,6 +122,56 @@ export class OutboxService {
       `UPDATE ${schema}.outbox
        SET published_at = NOW()
        WHERE id IN (${idList})`,
+    );
+  }
+
+  /**
+   * Moves an event to the Dead Letter Queue after max retries.
+   */
+  async moveToDeadLetter(
+    tx: any,
+    event: any,
+    errorMessage: string,
+    schema = 'geometry',
+  ): Promise<void> {
+    // 1. Insert into outbox_dlq
+    await tx.$queryRawUnsafe(
+      `INSERT INTO ${schema}.outbox_dlq
+        (original_id, event_type, aggregate_id, payload, error_message, retry_count)
+       VALUES ($1, $2, $3::uuid, $4::jsonb, $5, $6)`,
+      event.id,
+      event.event_type || event.eventType,
+      event.aggregate_id || event.aggregateId,
+      JSON.stringify(event.payload),
+      errorMessage,
+      event.retry_count || 0,
+    );
+
+    // 2. Delete from original outbox
+    await tx.$queryRawUnsafe(
+      `DELETE FROM ${schema}.outbox WHERE id = $1`,
+      event.id,
+    );
+  }
+
+  /**
+   * Increment the retry count for a failed event.
+   */
+  async incrementRetry(
+    tx: any,
+    eventId: bigint,
+    errorMessage: string,
+    schema = 'geometry',
+  ): Promise<void> {
+    await tx.$queryRawUnsafe(
+      `UPDATE ${schema}.outbox
+       SET retry_count = retry_count + 1,
+           last_error = $2,
+           failed_at = NOW(),
+           published_at = NULL
+       WHERE id = $1`,
+      eventId,
+      errorMessage,
     );
   }
 }

@@ -14,6 +14,7 @@ export const envSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
+  DIRECT_URL: z.string().url().optional(),
 
   // Redis
   REDIS_HOST: z.string().default('localhost'),
@@ -30,7 +31,7 @@ export const envSchema = z.object({
   // CORS
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
-  // Logging
+  // Logging & Observability
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
@@ -38,6 +39,7 @@ export const envSchema = z.object({
     .string()
     .transform((v) => v === 'true')
     .default('false'),
+  SENTRY_DSN: z.string().url().optional(),
 
   // Tracking
   TRACKING_MAX_BATCH_SIZE: z.coerce.number().default(100),

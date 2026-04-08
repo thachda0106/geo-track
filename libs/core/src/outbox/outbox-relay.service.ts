@@ -8,6 +8,12 @@ import { PrismaService } from '../prisma/prisma.service';
  * Polling relay that reads unpublished events from the outbox
  * and emits them to the internal Event Bus.
  * 
+ * Safety guarantees:
+ * - Uses FOR UPDATE SKIP LOCKED to avoid double-processing across replicas
+ * - Only marks events as published after successful emission
+ * - Failed events remain in outbox for retry on next poll
+ * - Periodically cleans up stale published events to prevent table bloat
+ * 
  * In a distributed setup, this service would physically publish
  * to a message broker like Kafka/Redpanda instead of EventEmitter.
  */
@@ -40,6 +46,7 @@ export class OutboxRelayService {
         this.logger.debug(`Found ${events.length} unpublished events in outbox.`);
 
         const publishedIds: bigint[] = [];
+        const failedIds: bigint[] = [];
 
         // 2. Publish locally (in memory)
         for (const event of events) {
@@ -59,12 +66,30 @@ export class OutboxRelayService {
               `Failed to publish event ${event.id}: ${error.message}`,
               error.stack,
             );
+
+            // DLQ Logic
+            const retryCount = (event as any).retry_count ?? 0;
+            const maxRetries = (event as any).max_retries ?? 5;
+
+            if (retryCount >= maxRetries) {
+              await this.outboxService.moveToDeadLetter(tx, event, error.message, 'geometry');
+              this.logger.warn(`Event ${event.id} permanently failed and moved to DLQ after ${retryCount} retries.`);
+            } else {
+              await this.outboxService.incrementRetry(tx, event.id, error.message, 'geometry');
+              failedIds.push(event.id); // Track so we can log it
+            }
           }
         }
 
-        // 3. Mark as published in DB to avoid double processing
+        // 3. Only mark successfully emitted events as published
         if (publishedIds.length > 0) {
           await this.outboxService.markPublished(tx, publishedIds, 'geometry');
+        }
+
+        if (failedIds.length > 0) {
+          this.logger.warn(
+            `Outbox relay: ${failedIds.length} events failed to publish, will retry on next cycle`,
+          );
         }
       });
     } catch (err) {
@@ -77,5 +102,33 @@ export class OutboxRelayService {
       this.isRelaying = false;
     }
   }
-}
 
+  /**
+   * Cleanup published outbox events older than 24 hours.
+   * Prevents unbounded table growth.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async cleanupPublishedEvents() {
+    try {
+      const result = await this.prisma.$queryRawUnsafe<{ count: bigint }[]>(
+        `WITH deleted AS (
+          DELETE FROM geometry.outbox
+          WHERE published_at IS NOT NULL
+            AND published_at < NOW() - INTERVAL '24 hours'
+          RETURNING id
+        )
+        SELECT COUNT(*) as count FROM deleted`,
+      );
+      const count = Number(result[0]?.count ?? 0);
+      if (count > 0) {
+        this.logger.log(`Cleaned up ${count} published outbox events`);
+      }
+    } catch (err) {
+      const error = err as Error;
+      this.logger.error(
+        `Outbox cleanup failed: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+}

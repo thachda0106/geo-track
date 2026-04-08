@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 // Core library
 import {
@@ -9,6 +10,7 @@ import {
   HealthModule,
   ResilienceModule,
   OutboxModule,
+  RedisModule,
   HttpErrorFilter,
   JwtAuthGuard,
   RolesGuard,
@@ -56,10 +58,17 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
     ScheduleModule.forRoot(),
 
+    // ─── Rate Limiting ─────────────────────────────────
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 10 },    // 10 req/s per IP
+      { name: 'medium', ttl: 60000, limit: 100 },  // 100 req/min per IP
+    ]),
+
     // ─── Core Infrastructure (global) ──────────────────
     AppConfigModule,
     LoggerModule,
     PrismaModule,
+    RedisModule,
     ResilienceModule,
     OutboxModule,
     HealthModule,
@@ -93,6 +102,12 @@ import { ScheduleModule } from '@nestjs/schedule';
     {
       provide: APP_INTERCEPTOR,
       useClass: TimeoutInterceptor,
+    },
+
+    // ─── Global Rate Limiter ───────────────────────────
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

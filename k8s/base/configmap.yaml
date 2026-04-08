@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geotrack-config
+  namespace: geotrack
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  API_PREFIX: "api/v1"
+  LOG_LEVEL: "info"
+  LOG_PRETTY: "false"
+  CORS_ORIGINS: "https://geotrack.example.com"
+  TRACKING_MAX_BATCH_SIZE: "100"
+  TRACKING_MAX_SPEED_KMH: "200"
+  TRACKING_ACCURACY_THRESHOLD_M: "50"
+  PRISMA_PREPARED_STATEMENT_CACHING: "false"

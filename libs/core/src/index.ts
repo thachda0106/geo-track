@@ -35,8 +35,13 @@ export * from './prisma/prisma.service';
 export * from './resilience/resilience.module';
 export * from './resilience/retry.service';
 export * from './resilience/timeout.interceptor';
+export * from './resilience/circuit-breaker.service';
 
 // Outbox / Inbox (Event-Driven)
 export * from './outbox/outbox.module';
 export * from './outbox/outbox.service';
 export * from './outbox/inbox.service';
+
+// Redis
+export * from './redis/redis.module';
+export * from './redis/redis.health';
