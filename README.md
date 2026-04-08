@@ -59,17 +59,17 @@ Server starts at:
 
 ```
 map-history/
-├── docs/                          # Architecture documentation (Phases 1-4)
-│   ├── 01-business-domain-discovery.md
-│   ├── 02-architecture-domain-design.md
-│   ├── 03-data-api-contract-design.md
-│   ├── 04-system-flows-tech-stack.md
-│   └── adr/                       # Architecture Decision Records
-│       ├── ADR-001-versioning-strategy.md
-│       ├── ADR-002-timescaledb-tracking.md
-│       ├── ADR-003-modular-monolith.md
-│       ├── ADR-004-postgis-spatial-ops.md
-│       └── ADR-005-socketio-realtime.md
+├── docs/                          # Architecture & System Documentation
+│   ├── system-knowledge/          # Deep dive architectural guides
+│   │   ├── 01_system_architecture_deep.md
+│   │   ├── 03_data_flow_streaming_redpanda.md
+│   │   ├── 08_observability_deep_dive.md
+│   │   ├── database_design_deep_dive.md
+│   │   ├── geo_tracking_architecture.md
+│   │   └── real_time_layer_deep_dive.md
+│   ├── adr/                       # Architecture Decision Records
+│   │   ├── ADR-001-versioning-strategy.md
+│   │   └── ...
 │
 ├── libs/                          # Shared libraries
 │   └── core/src/                  # @app/core — cross-cutting concerns
@@ -79,7 +79,9 @@ map-history/
 │       ├── health/                # Liveness/readiness probes
 │       ├── logger/                # Structured JSON logger (Pino)
 │       ├── middleware/            # Correlation ID
-│       └── prisma/                # Database service
+│       ├── outbox/                # Outbox/Inbox transactional relay system
+│       ├── prisma/                # Database service
+│       └── resilience/            # Circuit breakers & retries
 │
 ├── src/                           # Application source
 │   ├── main.ts                    # Bootstrap (Helmet, CORS, Swagger)
@@ -93,8 +95,11 @@ map-history/
 ├── prisma/
 │   └── schema.prisma              # Multi-schema (identity, geometry, versioning, tracking)
 │
-├── scripts/
-│   └── init-db.sql                # Database initialization (schemas, extensions)
+├── test/                          # Comprehensive testing suites
+│   ├── helpers/                   # Test utilities
+│   ├── setup-containers.ts        # Testcontainers spinups (Pg/Redpanda)
+│   ├── *.e2e-spec.ts              # End-to-end tests
+│   └── *.integration.spec.ts      # Component Integration tests
 │
 ├── docker-compose.yml             # Dev infrastructure
 ├── .env.example                   # Environment template
@@ -120,9 +125,10 @@ See [Architecture Docs](./docs/) for detailed design.
 |---------|-------------|
 | `npm run start:dev` | Start dev server (hot reload) |
 | `npm run build` | Build for production |
-| `npm run test` | Run unit tests |
-| `npm run test:e2e` | Run integration tests |
-| `npm run lint` | Lint & fix |
+| `npm run test` | Run all unit tests |
+| `npm run test:integration` | Run integration tests (requires Docker) |
+| `npm run test:e2e` | Run end-to-end tests (requires Docker/Testcontainers) |
+| `npm run lint` | Fully compliant strict ESLint scanning |
 | `npm run docker:up` | Start infrastructure |
 | `npm run docker:down` | Stop infrastructure |
 | `npm run db:migrate` | Run database migrations |
@@ -138,8 +144,9 @@ See [Architecture Docs](./docs/) for detailed design.
 | Database | PostgreSQL 16 + PostGIS 3.4 |
 | Time-Series | TimescaleDB |
 | Cache/PubSub | Redis 7 |
-| Message Queue | Kafka (Redpanda for dev) |
-| ORM | Prisma + raw SQL (PostGIS) |
+| Message Queue | Kafka (Redpanda) via Event-Driven Outbox pattern |
+| Testing Infrastructure | Testcontainers (dynamic Pg/Redpanda test-suites) |
+| ORM | Prisma 6 + raw SQL (PostGIS) |
 | Auth | JWT (Passport) |
 | Logging | Pino (structured JSON) |
 | Docs | Swagger (OpenAPI 3.0) |
