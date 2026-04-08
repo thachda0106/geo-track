@@ -27,7 +27,14 @@ export class PrismaService
 
     // Log slow queries in development
     if (process.env.NODE_ENV === 'development') {
-      (this as any).$on('query', (e: any) => {
+      const prismaEvents = this as unknown as {
+        $on(
+          event: 'query',
+          listener: (e: import('@prisma/client').Prisma.QueryEvent) => void,
+        ): void;
+      };
+
+      prismaEvents.$on('query', (e) => {
         if (e.duration > 100) {
           this.logger.warn(
             `Slow query (${e.duration}ms): ${e.query}`,

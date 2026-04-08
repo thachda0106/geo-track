@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService, NotFoundError, DuplicateError, BusinessRuleError } from '@app/core';
+import {
+  PrismaService,
+  NotFoundError,
+  DuplicateError,
+  BusinessRuleError,
+} from '@app/core';
 import { v4 as uuidv4 } from 'uuid';
 
 // ─── DTOs ─────────────────────────────────────────────────────
@@ -33,6 +38,26 @@ export interface LocationQuery {
   resolution?: 'raw' | '5min' | '1hr';
   cursor?: string;
   limit?: number;
+}
+
+export interface LocationRow {
+  timestamp: Date;
+  lat: number;
+  lng: number;
+  altitude?: number;
+  speed?: number;
+  bearing?: number;
+  accuracy?: number;
+  point_count?: number;
+}
+
+export interface TrailResultRow {
+  geometry: Record<string, unknown>;
+  point_count: number | bigint;
+  distance_m: number;
+  start_time: Date;
+  end_time: Date;
+  avg_speed: number | null;
 }
 
 // ─── Service ──────────────────────────────────────────────────
@@ -103,9 +128,10 @@ export class TrackingService {
         status: s.status,
         totalPoints: Number(s.totalPoints),
         totalDistanceM: s.totalDistanceM,
-        lastLocation: s.lastLat && s.lastLng
-          ? { lat: s.lastLat, lng: s.lastLng, timestamp: s.lastLocationAt }
-          : null,
+        lastLocation:
+          s.lastLat && s.lastLng
+            ? { lat: s.lastLat, lng: s.lastLng, timestamp: s.lastLocationAt }
+            : null,
         startedAt: s.startedAt,
         endedAt: s.endedAt,
       })),
@@ -135,9 +161,14 @@ export class TrackingService {
       },
       totalPoints: Number(session.totalPoints),
       totalDistanceM: session.totalDistanceM,
-      lastLocation: session.lastLat && session.lastLng
-        ? { lat: session.lastLat, lng: session.lastLng, timestamp: session.lastLocationAt }
-        : null,
+      lastLocation:
+        session.lastLat && session.lastLng
+          ? {
+              lat: session.lastLat,
+              lng: session.lastLng,
+              timestamp: session.lastLocationAt,
+            }
+          : null,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
     };
@@ -191,12 +222,18 @@ export class TrackingService {
 
     for (const p of dto.points) {
       placeholders.push(
-        `($${paramIdx}::timestamptz, $${paramIdx + 1}::uuid, $${paramIdx + 2}::uuid, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8})`
+        `($${paramIdx}::timestamptz, $${paramIdx + 1}::uuid, $${paramIdx + 2}::uuid, $${paramIdx + 3}, $${paramIdx + 4}, $${paramIdx + 5}, $${paramIdx + 6}, $${paramIdx + 7}, $${paramIdx + 8})`,
       );
       values.push(
-        p.timestamp, dto.sessionId, session.deviceId,
-        p.lat, p.lng,
-        p.altitude ?? null, p.speed ?? null, p.bearing ?? null, p.accuracy ?? null,
+        p.timestamp,
+        dto.sessionId,
+        session.deviceId,
+        p.lat,
+        p.lng,
+        p.altitude ?? null,
+        p.speed ?? null,
+        p.bearing ?? null,
+        p.accuracy ?? null,
       );
       paramIdx += 9;
     }
@@ -252,14 +289,16 @@ export class TrackingService {
     let selectFields: string;
     const isRaw = query.resolution === 'raw' || !query.resolution;
     if (isRaw) {
-      selectFields = 'time as timestamp, lat, lng, altitude, speed, bearing, accuracy';
+      selectFields =
+        'time as timestamp, lat, lng, altitude, speed, bearing, accuracy';
     } else {
-      selectFields = 'bucket as timestamp, avg_lat as lat, avg_lng as lng, avg_speed as speed, point_count';
+      selectFields =
+        'bucket as timestamp, avg_lat as lat, avg_lng as lng, avg_speed as speed, point_count';
     }
 
     params.push(limit);
 
-    const locations = await this.prisma.$queryRawUnsafe<any[]>(
+    const locations = await this.prisma.$queryRawUnsafe<LocationRow[]>(
       `SELECT ${selectFields}
       FROM ${table}
       WHERE ${conditions.join(' AND ')}
@@ -302,7 +341,7 @@ export class TrackingService {
       paramIdx++;
     }
 
-    const [result] = await this.prisma.$queryRawUnsafe<any[]>(
+    const [result] = await this.prisma.$queryRawUnsafe<TrailResultRow[]>(
       `SELECT
         ST_AsGeoJSON(ST_MakeLine(geom ORDER BY time))::json as geometry,
         COUNT(*) as point_count,
@@ -324,16 +363,21 @@ export class TrackingService {
         distanceM: Math.round(result.distance_m * 100) / 100,
         startTime: result.start_time,
         endTime: result.end_time,
-        avgSpeedMs: result.avg_speed ? Math.round(result.avg_speed * 100) / 100 : null,
+        avgSpeedMs: result.avg_speed
+          ? Math.round(result.avg_speed * 100) / 100
+          : null,
       },
     };
   }
 
   private getLocationTable(resolution?: string): string {
     switch (resolution) {
-      case '5min': return 'tracking.location_5min';
-      case '1hr': return 'tracking.location_1hr';
-      default: return 'tracking.location_points';
+      case '5min':
+        return 'tracking.location_5min';
+      case '1hr':
+        return 'tracking.location_1hr';
+      default:
+        return 'tracking.location_points';
     }
   }
 }

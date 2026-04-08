@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '@app/core';
+import { Server } from 'http';
 
 describe('Authentication Flows (e2e)', () => {
   let app: INestApplication;
@@ -26,18 +27,24 @@ describe('Authentication Flows (e2e)', () => {
     prisma = app.get(PrismaService);
 
     // Clean up any existing test user before starting
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE email = $1`, testUser.email);
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE email = $1`,
+      testUser.email,
+    );
   });
 
   afterAll(async () => {
     // Teardown
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE email = $1`, testUser.email);
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE email = $1`,
+      testUser.email,
+    );
     await app.close();
   });
 
   describe('Registration & Login', () => {
     it('should successfully register a new user', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(app.getHttpServer() as Server)
         .post('/auth/register')
         .send(testUser)
         .expect(201);
@@ -49,14 +56,14 @@ describe('Authentication Flows (e2e)', () => {
     });
 
     it('should fail to register with a duplicate email', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/auth/register')
         .send(testUser)
         .expect(409); // Conflict
     });
 
     it('should successfully login with valid credentials', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(app.getHttpServer() as Server)
         .post('/auth/login')
         .send({
           email: testUser.email,
@@ -69,7 +76,7 @@ describe('Authentication Flows (e2e)', () => {
     });
 
     it('should fail to login with invalid credentials', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post('/auth/login')
         .send({
           email: testUser.email,
@@ -81,14 +88,14 @@ describe('Authentication Flows (e2e)', () => {
 
   describe('JWT Protection (/auth/me)', () => {
     it('should reject unauthenticated requests to protected routes', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .get('/auth/me')
         .expect(401);
     });
 
     it('should return profile for authenticated requests', async () => {
       // 1. Get token
-      const loginRes = await request(app.getHttpServer())
+      const loginRes = await request(app.getHttpServer() as Server)
         .post('/auth/login')
         .send({
           email: testUser.email,
@@ -98,7 +105,7 @@ describe('Authentication Flows (e2e)', () => {
       const token = loginRes.body.accessToken;
 
       // 2. Fetch profile
-      const profileRes = await request(app.getHttpServer())
+      const profileRes = await request(app.getHttpServer() as Server)
         .get('/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);

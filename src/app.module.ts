@@ -60,8 +60,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 
     // ─── Rate Limiting ─────────────────────────────────
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1000, limit: 10 },    // 10 req/s per IP
-      { name: 'medium', ttl: 60000, limit: 100 },  // 100 req/min per IP
+      { name: 'short', ttl: 1000, limit: 10 }, // 10 req/s per IP
+      { name: 'medium', ttl: 60000, limit: 100 }, // 100 req/min per IP
     ]),
 
     // ─── Core Infrastructure (global) ──────────────────

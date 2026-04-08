@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@app/core';
-import {
-  NotFoundError,
-  ConflictError,
-  InvalidGeometryError,
-} from '@app/core';
+import { NotFoundError, ConflictError, InvalidGeometryError } from '@app/core';
 import { v4 as uuidv4 } from 'uuid';
 
 // ─── DTOs ─────────────────────────────────────────────────────
@@ -33,7 +29,7 @@ export interface GeoJsonGeometry {
 }
 
 export interface FeatureListQuery {
-  bbox?: string;          // minLng,minLat,maxLng,maxLat
+  bbox?: string; // minLng,minLat,maxLng,maxLat
   geometryType?: string;
   tags?: string;
   createdBy?: string;
@@ -41,6 +37,21 @@ export interface FeatureListQuery {
   limit?: number;
   sort?: string;
   order?: 'asc' | 'desc';
+}
+
+export interface FeatureRow {
+  id: string;
+  name: string;
+  description: string | null;
+  geometry_type: string;
+  geometry: GeoJsonGeometry;
+  properties: Record<string, unknown>;
+  tags: string[];
+  current_version: number;
+  created_by: string;
+  updated_by: string;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // ─── Service ──────────────────────────────────────────────────
@@ -67,7 +78,7 @@ export class GeometryService {
     // Use raw SQL for PostGIS geometry insertion + outbox in single transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // 1. Insert feature with PostGIS geometry
-      const [feature] = await tx.$queryRawUnsafe<any[]>(
+      const [feature] = await tx.$queryRawUnsafe<FeatureRow[]>(
         `INSERT INTO geometry.features
           (id, name, description, geometry_type, geometry, properties, tags, current_version, created_by, updated_by)
         VALUES
@@ -113,7 +124,7 @@ export class GeometryService {
    * Get a single feature by ID.
    */
   async getFeature(id: string) {
-    const [feature] = await this.prisma.$queryRawUnsafe<any[]>(
+    const [feature] = await this.prisma.$queryRawUnsafe<FeatureRow[]>(
       `SELECT id, name, description, geometry_type,
         ST_AsGeoJSON(geometry)::json as geometry,
         properties, tags, current_version, created_by, updated_by,
@@ -141,7 +152,9 @@ export class GeometryService {
 
     // Bounding box filter (spatial)
     if (query.bbox) {
-      const [minLng, minLat, maxLng, maxLat] = query.bbox.split(',').map(Number);
+      const [minLng, minLat, maxLng, maxLat] = query.bbox
+        .split(',')
+        .map(Number);
       conditions.push(
         `geometry && ST_MakeEnvelope($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, 4326)`,
       );
@@ -167,13 +180,15 @@ export class GeometryService {
 
     // Whitelist ORDER BY to prevent injection
     const ALLOWED_SORT_COLUMNS = ['updated_at', 'created_at', 'name'] as const;
-    const sortColumn = (ALLOWED_SORT_COLUMNS as readonly string[]).includes(query.sort || '')
+    const sortColumn = (ALLOWED_SORT_COLUMNS as readonly string[]).includes(
+      query.sort || '',
+    )
       ? query.sort
       : 'updated_at';
     const orderDirection = query.order === 'asc' ? 'ASC' : 'DESC';
     const orderBy = `${sortColumn} ${orderDirection}`;
 
-    const features = await this.prisma.$queryRawUnsafe<any[]>(
+    const features = await this.prisma.$queryRawUnsafe<FeatureRow[]>(
       `SELECT id, name, description, geometry_type,
         ST_AsGeoJSON(geometry)::json as geometry,
         properties, tags, current_version, created_by,
@@ -187,7 +202,7 @@ export class GeometryService {
     );
 
     const hasMore = features.length > limit;
-    const data = features.slice(0, limit).map(this.mapFeature);
+    const data = features.slice(0, limit).map((f) => this.mapFeature(f));
 
     return {
       data,
@@ -207,7 +222,9 @@ export class GeometryService {
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Lock and check version
-      const [current] = await tx.$queryRawUnsafe<any[]>(
+      const [current] = await tx.$queryRawUnsafe<
+        { id: string; current_version: number; geometry: GeoJsonGeometry }[]
+      >(
         `SELECT id, current_version, ST_AsGeoJSON(geometry)::json as geometry
         FROM geometry.features
         WHERE id = $1::uuid AND is_deleted = FALSE
@@ -220,7 +237,11 @@ export class GeometryService {
       }
 
       if (current.current_version !== dto.expectedVersion) {
-        throw new ConflictError('Feature', current.current_version, dto.expectedVersion);
+        throw new ConflictError(
+          'Feature',
+          current.current_version,
+          dto.expectedVersion,
+        );
       }
 
       // 2. Build parameterized update SET clause
@@ -260,13 +281,15 @@ export class GeometryService {
         paramIdx++;
       }
       if (dto.geometry) {
-        sets.push(`geometry = ST_SetSRID(ST_GeomFromGeoJSON($${paramIdx}), 4326)`);
+        sets.push(
+          `geometry = ST_SetSRID(ST_GeomFromGeoJSON($${paramIdx}), 4326)`,
+        );
         updateParams.push(JSON.stringify(dto.geometry));
         paramIdx++;
       }
 
       // 3. Update feature (fully parameterized)
-      const [updated] = await tx.$queryRawUnsafe<any[]>(
+      const [updated] = await tx.$queryRawUnsafe<FeatureRow[]>(
         `UPDATE geometry.features
         SET ${sets.join(', ')}
         WHERE id = $1::uuid
@@ -304,7 +327,9 @@ export class GeometryService {
     const correlationId = uuidv4();
 
     await this.prisma.$transaction(async (tx) => {
-      const [current] = await tx.$queryRawUnsafe<any[]>(
+      const [current] = await tx.$queryRawUnsafe<
+        { id: string; current_version: number }[]
+      >(
         `SELECT id, current_version FROM geometry.features
         WHERE id = $1::uuid AND is_deleted = FALSE FOR UPDATE`,
         id,
@@ -312,7 +337,11 @@ export class GeometryService {
 
       if (!current) throw new NotFoundError('Feature', id);
       if (current.current_version !== expectedVersion) {
-        throw new ConflictError('Feature', current.current_version, expectedVersion);
+        throw new ConflictError(
+          'Feature',
+          current.current_version,
+          expectedVersion,
+        );
       }
 
       await tx.$queryRawUnsafe(
@@ -327,13 +356,17 @@ export class GeometryService {
         `INSERT INTO geometry.outbox (event_type, aggregate_id, payload, correlation_id)
         VALUES ('FeatureDeleted', $1::uuid, $2::jsonb, $3::uuid)`,
         id,
-        JSON.stringify({ featureId: id, lastVersion: current.current_version, deletedBy: userId }),
+        JSON.stringify({
+          featureId: id,
+          lastVersion: current.current_version,
+          deletedBy: userId,
+        }),
         correlationId,
       );
     });
   }
 
-  private mapFeature(row: any) {
+  private mapFeature(row: FeatureRow) {
     return {
       id: row.id,
       name: row.name,

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
 
 // ═══════════════════════════════════════════════════════
 // Base Domain Error
@@ -10,10 +10,7 @@ export abstract class DomainError extends Error {
   abstract readonly errorCode: string;
   readonly details?: Record<string, unknown>;
 
-  constructor(
-    message: string,
-    details?: Record<string, unknown>,
-  ) {
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = this.constructor.name;
     this.details = details;
@@ -30,9 +27,7 @@ export class ValidationError extends DomainError {
   readonly errorCode = 'VALIDATION_ERROR';
   readonly errors: Array<{ field: string; code: string; message: string }>;
 
-  constructor(
-    errors: Array<{ field: string; code: string; message: string }>,
-  ) {
+  constructor(errors: Array<{ field: string; code: string; message: string }>) {
     super('Validation failed');
     this.errors = errors;
   }

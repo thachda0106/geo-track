@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { AppLoggerService, PrismaService, HttpErrorFilter } from '@app/core';
 import { APP_FILTER } from '@nestjs/core';
 
@@ -30,21 +30,25 @@ export async function createTestApp(options: {
     imports: [
       ConfigModule.forRoot({
         isGlobal: true,
-        load: [() => ({
-          NODE_ENV: 'test',
-          PORT: 3001,
-          API_PREFIX: 'api/v1',
-          DATABASE_URL: process.env.DATABASE_URL || 'postgresql://geotrack:geotrack_dev@localhost:5432/geotrack_test',
-          REDIS_HOST: 'localhost',
-          REDIS_PORT: 6379,
-          KAFKA_BROKERS: 'localhost:9092',
-          JWT_SECRET: TEST_JWT_SECRET,
-          JWT_ACCESS_EXPIRATION: '15m',
-          JWT_REFRESH_EXPIRATION: '7d',
-          CORS_ORIGINS: 'http://localhost:3001',
-          LOG_LEVEL: 'error', // Quiet logs during tests
-          LOG_PRETTY: 'false',
-        })],
+        load: [
+          () => ({
+            NODE_ENV: 'test',
+            PORT: 3001,
+            API_PREFIX: 'api/v1',
+            DATABASE_URL:
+              process.env.DATABASE_URL ||
+              'postgresql://geotrack:geotrack_dev@localhost:5432/geotrack_test',
+            REDIS_HOST: 'localhost',
+            REDIS_PORT: 6379,
+            KAFKA_BROKERS: 'localhost:9092',
+            JWT_SECRET: TEST_JWT_SECRET,
+            JWT_ACCESS_EXPIRATION: '15m',
+            JWT_REFRESH_EXPIRATION: '7d',
+            CORS_ORIGINS: 'http://localhost:3001',
+            LOG_LEVEL: 'debug', // Enable logs to debug e2e failures
+            LOG_PRETTY: 'false',
+          }),
+        ],
       }),
       JwtModule.register({
         secret: TEST_JWT_SECRET,

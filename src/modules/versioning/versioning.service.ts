@@ -7,12 +7,41 @@ export interface VersionListQuery {
   cursor?: string;
   limit?: number;
   from?: string; // ISO 8601
-  to?: string;   // ISO 8601
+  to?: string; // ISO 8601
 }
 
 export interface RevertDto {
   toVersion: number;
   message?: string;
+}
+
+export interface VersionTimelineRow {
+  id: string;
+  version_number: number;
+  change_type: string;
+  author_id: string;
+  message: string;
+  vertex_count: number;
+  area_sqm: number;
+  length_m: number;
+  created_at: Date;
+  author_name: string;
+}
+
+export interface VersionSnapshotRow extends VersionTimelineRow {
+  feature_id: string;
+  snapshot_geometry: Record<string, unknown>;
+  snapshot_properties: Record<string, unknown>;
+  snapshot_name: string;
+  diff: Record<string, unknown>;
+}
+
+export interface TimelineEntryRow {
+  version_number: number;
+  change_type: string;
+  geometry: Record<string, unknown>;
+  author_id: string;
+  timestamp: Date;
 }
 
 // ─── Service ──────────────────────────────────────────────────
@@ -42,7 +71,7 @@ export class VersioningService {
       paramIndex++;
     }
 
-    const versions = await this.prisma.$queryRawUnsafe<any[]>(
+    const versions = await this.prisma.$queryRawUnsafe<VersionTimelineRow[]>(
       `SELECT
         v.id, v.version_number, v.change_type,
         v.author_id, v.message,
@@ -79,7 +108,7 @@ export class VersioningService {
    * Get a specific version with full snapshot.
    */
   async getVersion(featureId: string, versionNumber: number) {
-    const [version] = await this.prisma.$queryRawUnsafe<any[]>(
+    const [version] = await this.prisma.$queryRawUnsafe<VersionSnapshotRow[]>(
       `SELECT
         v.id, v.feature_id, v.version_number, v.change_type,
         ST_AsGeoJSON(v.snapshot_geometry)::json as snapshot_geometry,
@@ -122,7 +151,11 @@ export class VersioningService {
   /**
    * Compare two versions and return diff.
    */
-  async diffVersions(featureId: string, fromVersion: number, toVersion: number) {
+  async diffVersions(
+    featureId: string,
+    fromVersion: number,
+    toVersion: number,
+  ) {
     const [from, to] = await Promise.all([
       this.getVersion(featureId, fromVersion),
       this.getVersion(featureId, toVersion),
@@ -145,9 +178,10 @@ export class VersioningService {
     featureId: string,
     from: string,
     to: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     granularity: 'version' | 'hour' | 'day' = 'version',
   ) {
-    const entries = await this.prisma.$queryRawUnsafe<any[]>(
+    const entries = await this.prisma.$queryRawUnsafe<TimelineEntryRow[]>(
       `SELECT
         v.version_number,
         v.change_type,
@@ -184,7 +218,9 @@ export class VersioningService {
     const targetVersion = await this.getVersion(featureId, dto.toVersion);
 
     // Get current feature version number
-    const [current] = await this.prisma.$queryRawUnsafe<any[]>(
+    const [current] = await this.prisma.$queryRawUnsafe<
+      { current_version: number }[]
+    >(
       `SELECT current_version FROM geometry.features
       WHERE id = $1::uuid AND is_deleted = FALSE`,
       featureId,
@@ -250,8 +286,8 @@ export class VersioningService {
    */
   async createInitialVersion(data: {
     featureId: string;
-    geometry: any;
-    properties: Record<string, any>;
+    geometry: Record<string, unknown>;
+    properties: Record<string, unknown>;
     name: string;
     authorId: string;
   }) {
@@ -279,8 +315,8 @@ export class VersioningService {
   async createVersionSnapshot(data: {
     featureId: string;
     versionNumber: number;
-    geometry: any;
-    properties: Record<string, any>;
+    geometry: Record<string, unknown>;
+    properties: Record<string, unknown>;
     name: string;
     authorId: string;
   }) {

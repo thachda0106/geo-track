@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { TrackingController, TrackingIngestController } from './tracking.controller';
+import {
+  TrackingController,
+  TrackingIngestController,
+} from './tracking.controller';
 import { TrackingService } from './tracking.service';
 
 @Module({

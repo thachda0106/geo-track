@@ -21,6 +21,13 @@ export interface OutboxRecord extends OutboxEvent {
   max_retries: number;
 }
 
+export interface PrismaTransactionClient {
+  $queryRawUnsafe: <T = unknown>(
+    query: string,
+    ...values: unknown[]
+  ) => Promise<T>;
+}
+
 // ═══════════════════════════════════════════════════════
 // Outbox Service
 // ═══════════════════════════════════════════════════════
@@ -63,7 +70,7 @@ export class OutboxService {
    * @param schema - Database schema containing the outbox table (default: 'geometry')
    */
   async publishEvent(
-    tx: any, // Prisma interactive transaction
+    tx: PrismaTransactionClient, // Prisma interactive transaction
     event: OutboxEvent,
     schema = 'geometry',
   ): Promise<void> {
@@ -91,7 +98,7 @@ export class OutboxService {
    * @param schema - Database schema (default: 'geometry')
    */
   async fetchUnpublished(
-    tx: any,
+    tx: PrismaTransactionClient,
     limit = 100,
     schema = 'geometry',
   ): Promise<OutboxRecord[]> {
@@ -104,14 +111,14 @@ export class OutboxService {
        LIMIT $1
        FOR UPDATE SKIP LOCKED`,
       limit,
-    ) as Promise<OutboxRecord[]>;
+    );
   }
 
   /**
    * Mark outbox events as published (after Kafka ack).
    */
   async markPublished(
-    tx: any,
+    tx: PrismaTransactionClient,
     eventIds: bigint[],
     schema = 'geometry',
   ): Promise<void> {
@@ -129,8 +136,8 @@ export class OutboxService {
    * Moves an event to the Dead Letter Queue after max retries.
    */
   async moveToDeadLetter(
-    tx: any,
-    event: any,
+    tx: PrismaTransactionClient,
+    event: OutboxRecord | Record<string, unknown>,
     errorMessage: string,
     schema = 'geometry',
   ): Promise<void> {
@@ -139,18 +146,20 @@ export class OutboxService {
       `INSERT INTO ${schema}.outbox_dlq
         (original_id, event_type, aggregate_id, payload, error_message, retry_count)
        VALUES ($1, $2, $3::uuid, $4::jsonb, $5, $6)`,
-      event.id,
-      event.event_type || event.eventType,
-      event.aggregate_id || event.aggregateId,
+      event.id as bigint,
+      ((event as Record<string, unknown>).event_type ||
+        event.eventType) as string,
+      ((event as Record<string, unknown>).aggregate_id ||
+        event.aggregateId) as string,
       JSON.stringify(event.payload),
       errorMessage,
-      event.retry_count || 0,
+      ((event as Record<string, unknown>).retry_count as number) || 0,
     );
 
     // 2. Delete from original outbox
     await tx.$queryRawUnsafe(
       `DELETE FROM ${schema}.outbox WHERE id = $1`,
-      event.id,
+      event.id as bigint,
     );
   }
 
@@ -158,7 +167,7 @@ export class OutboxService {
    * Increment the retry count for a failed event.
    */
   async incrementRetry(
-    tx: any,
+    tx: PrismaTransactionClient,
     eventId: bigint,
     errorMessage: string,
     schema = 'geometry',

@@ -33,11 +33,7 @@ export class HttpErrorFilter implements ExceptionFilter {
 
     if (exception instanceof DomainError) {
       // ─── Known domain error ─────────────────────────
-      problemDetails = toProblemDetails(
-        exception,
-        request.url,
-        correlationId,
-      );
+      problemDetails = toProblemDetails(exception, request.url, correlationId);
 
       this.logger.warn(
         `Domain error: ${exception.errorCode} — ${exception.message}`,
@@ -55,8 +51,9 @@ export class HttpErrorFilter implements ExceptionFilter {
         detail:
           typeof exceptionResponse === 'string'
             ? exceptionResponse
-            : (exceptionResponse as Record<string, unknown>).message?.toString() ||
-              exception.message,
+            : (
+                exceptionResponse as Record<string, unknown>
+              ).message?.toString() || exception.message,
         instance: request.url,
         correlationId,
       };
@@ -79,7 +76,8 @@ export class HttpErrorFilter implements ExceptionFilter {
       this.logger.warn(`HTTP exception: ${status} — ${exception.message}`);
     } else {
       // ─── Unknown error (bug) ────────────────────────
-      const error = exception instanceof Error ? exception : new Error(String(exception));
+      const error =
+        exception instanceof Error ? exception : new Error(String(exception));
 
       problemDetails = {
         type: 'https://api.geotrack.app/errors/internal',
@@ -98,8 +96,6 @@ export class HttpErrorFilter implements ExceptionFilter {
       );
     }
 
-    response
-      .status(problemDetails.status)
-      .json(problemDetails);
+    response.status(problemDetails.status).json(problemDetails);
   }
 }

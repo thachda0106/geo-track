@@ -59,7 +59,7 @@ export class TimeoutInterceptor implements NestInterceptor {
               ),
           );
         }
-        return throwError(() => err);
+        return throwError(() => err as Error);
       }),
     );
   }

@@ -62,9 +62,13 @@ export class InboxService {
         `Inbox: marked ${eventType} (${eventId}) as processed`,
         'InboxService',
       );
-    } catch (error: any) {
+    } catch (error) {
       // P2002 = unique constraint violation (already processed)
-      if (error?.code === 'P2002') {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        (error as { code?: string }).code === 'P2002'
+      ) {
         this.logger.debug(
           `Inbox: event ${eventId} already processed (duplicate)`,
           'InboxService',
@@ -93,7 +97,7 @@ export class InboxService {
     // Atomic claim: INSERT succeeds only if event_id doesn't exist yet
     const result = await this.prisma.$queryRawUnsafe<{ inserted: boolean }[]>(
       `INSERT INTO versioning.inbox (event_id, event_type, processed_at)
-       VALUES ($1, $2, NOW())
+       VALUES ($1::uuid, $2, NOW())
        ON CONFLICT (event_id) DO NOTHING
        RETURNING TRUE as inserted`,
       eventId,
@@ -123,7 +127,7 @@ export class InboxService {
         'InboxService',
       );
       await this.prisma.$queryRawUnsafe(
-        `DELETE FROM versioning.inbox WHERE event_id = $1`,
+        `DELETE FROM versioning.inbox WHERE event_id = $1::uuid`,
         eventId,
       );
       throw error;

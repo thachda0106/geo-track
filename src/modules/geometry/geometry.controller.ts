@@ -10,7 +10,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { GeometryService, CreateFeatureDto, UpdateFeatureDto, FeatureListQuery } from './geometry.service';
+import {
+  GeometryService,
+  CreateFeatureDto,
+  UpdateFeatureDto,
+  FeatureListQuery,
+} from './geometry.service';
 import { SpatialQueryService, SpatialQueryDto } from './spatial-query.service';
 import { Roles, CurrentUser, AuthenticatedUser } from '@app/core';
 

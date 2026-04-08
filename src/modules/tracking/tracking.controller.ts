@@ -50,10 +50,7 @@ export class TrackingController {
   }
 
   @Get(':id/locations')
-  async getLocations(
-    @Param('id') id: string,
-    @Query() query: LocationQuery,
-  ) {
+  async getLocations(@Param('id') id: string, @Query() query: LocationQuery) {
     return this.trackingService.getLocations(id, query);
   }
 

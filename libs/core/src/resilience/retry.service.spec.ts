@@ -26,7 +26,8 @@ describe('RetryService', () => {
     });
 
     it('should retry and succeed on second attempt', async () => {
-      const fn = jest.fn()
+      const fn = jest
+        .fn()
         .mockRejectedValueOnce(new Error('transient'))
         .mockResolvedValue('success');
 
@@ -73,7 +74,8 @@ describe('RetryService', () => {
     });
 
     it('should retry when retryOn predicate returns true', async () => {
-      const fn = jest.fn()
+      const fn = jest
+        .fn()
         .mockRejectedValueOnce(new Error('timeout'))
         .mockResolvedValue('ok');
 
@@ -92,7 +94,11 @@ describe('RetryService', () => {
       const fn = jest.fn().mockRejectedValue(new Error('fail'));
 
       await expect(
-        retryService.execute(fn, { maxRetries: 1, baseDelayMs: 1, maxDelayMs: 10 }),
+        retryService.execute(fn, {
+          maxRetries: 1,
+          baseDelayMs: 1,
+          maxDelayMs: 10,
+        }),
       ).rejects.toThrow();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -105,7 +111,11 @@ describe('RetryService', () => {
       const fn = jest.fn().mockRejectedValue('string error');
 
       await expect(
-        retryService.execute(fn, { maxRetries: 0, baseDelayMs: 1, maxDelayMs: 10 }),
+        retryService.execute(fn, {
+          maxRetries: 0,
+          baseDelayMs: 1,
+          maxDelayMs: 10,
+        }),
       ).rejects.toThrow('string error');
     });
   });

@@ -17,7 +17,7 @@ describe('Geometry Integration (Integration)', () => {
         ConfigModule.forRoot({ isGlobal: true }),
         EventEmitterModule.forRoot(),
         PrismaModule,
-        GeometryModule
+        GeometryModule,
       ],
     }).compile();
 
@@ -25,18 +25,26 @@ describe('Geometry Integration (Integration)', () => {
     geometryService = moduleRef.get<GeometryService>(GeometryService);
 
     // Setup Test Admin User for auth relations
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE email = 'geometry_test@test.com'`);
-    const [user] = await prisma.$queryRawUnsafe<any[]>(
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE email = 'geometry_test@test.com'`,
+    );
+    const [user] = await prisma.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO identity.users (email, password_hash, display_name, role)
        VALUES ('geometry_test@test.com', 'hash', 'Test Geo', 'admin')
-       RETURNING id`
+       RETURNING id`,
     );
     testUserId = user.id;
   });
 
   afterAll(async () => {
-    await prisma.$queryRawUnsafe(`DELETE FROM geometry.features WHERE created_by = $1::uuid`, testUserId);
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE id = $1::uuid`, testUserId);
+    await prisma.$queryRawUnsafe(
+      `DELETE FROM geometry.features WHERE created_by = $1::uuid`,
+      testUserId,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE id = $1::uuid`,
+      testUserId,
+    );
     await moduleRef.close();
   });
 

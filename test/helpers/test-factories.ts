@@ -10,22 +10,25 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Create a test user data object.
  */
-export function createTestUser(overrides?: Partial<{
-  id: string;
-  email: string;
-  passwordHash: string;
-  displayName: string;
-  role: string;
-  status: string;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}>) {
+export function createTestUser(
+  overrides?: Partial<{
+    id: string;
+    email: string;
+    passwordHash: string;
+    displayName: string;
+    role: string;
+    status: string;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>,
+) {
   const now = new Date();
   return {
     id: overrides?.id ?? uuidv4(),
     email: overrides?.email ?? `user-${Date.now()}@test.com`,
-    passwordHash: overrides?.passwordHash ?? '$2b$12$mock.hash.value.for.testing.purposes',
+    passwordHash:
+      overrides?.passwordHash ?? '$2b$12$mock.hash.value.for.testing.purposes',
     displayName: overrides?.displayName ?? 'Test User',
     role: overrides?.role ?? 'viewer',
     status: overrides?.status ?? 'active',
@@ -38,21 +41,23 @@ export function createTestUser(overrides?: Partial<{
 /**
  * Create a test feature data object (for Geometry module).
  */
-export function createTestFeature(overrides?: Partial<{
-  id: string;
-  name: string;
-  description: string | null;
-  geometry_type: string;
-  geometry: object;
-  properties: object;
-  tags: string[];
-  current_version: number;
-  created_by: string;
-  updated_by: string;
-  is_deleted: boolean;
-  created_at: Date;
-  updated_at: Date;
-}>) {
+export function createTestFeature(
+  overrides?: Partial<{
+    id: string;
+    name: string;
+    description: string | null;
+    geometry_type: string;
+    geometry: object;
+    properties: object;
+    tags: string[];
+    current_version: number;
+    created_by: string;
+    updated_by: string;
+    is_deleted: boolean;
+    created_at: Date;
+    updated_at: Date;
+  }>,
+) {
   const now = new Date();
   const id = overrides?.id ?? uuidv4();
   const userId = overrides?.created_by ?? uuidv4();
@@ -61,7 +66,10 @@ export function createTestFeature(overrides?: Partial<{
     name: overrides?.name ?? 'Test Feature',
     description: overrides?.description ?? 'A test geometry feature',
     geometry_type: overrides?.geometry_type ?? 'Point',
-    geometry: overrides?.geometry ?? { type: 'Point', coordinates: [106.6297, 10.8231] },
+    geometry: overrides?.geometry ?? {
+      type: 'Point',
+      coordinates: [106.6297, 10.8231],
+    },
     properties: overrides?.properties ?? { category: 'test' },
     tags: overrides?.tags ?? ['test'],
     current_version: overrides?.current_version ?? 1,
@@ -76,25 +84,27 @@ export function createTestFeature(overrides?: Partial<{
 /**
  * Create a test tracking session data object.
  */
-export function createTestSession(overrides?: Partial<{
-  id: string;
-  deviceId: string;
-  ownerId: string;
-  status: string;
-  minIntervalMs: number;
-  maxSpeedKmh: number;
-  accuracyThresholdM: number;
-  trackingMode: string;
-  totalPoints: bigint;
-  totalDistanceM: number;
-  lastLocationAt: Date | null;
-  lastLat: number | null;
-  lastLng: number | null;
-  startedAt: Date;
-  endedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}>) {
+export function createTestSession(
+  overrides?: Partial<{
+    id: string;
+    deviceId: string;
+    ownerId: string;
+    status: string;
+    minIntervalMs: number;
+    maxSpeedKmh: number;
+    accuracyThresholdM: number;
+    trackingMode: string;
+    totalPoints: bigint;
+    totalDistanceM: number;
+    lastLocationAt: Date | null;
+    lastLat: number | null;
+    lastLng: number | null;
+    startedAt: Date;
+    endedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>,
+) {
   const now = new Date();
   return {
     id: overrides?.id ?? uuidv4(),
@@ -130,8 +140,8 @@ export const TestGeometry = {
     type: 'LineString' as const,
     coordinates: coords ?? [
       [106.6297, 10.8231],
-      [106.6350, 10.8280],
-      [106.6400, 10.8320],
+      [106.635, 10.828],
+      [106.64, 10.832],
     ],
   }),
 
@@ -140,9 +150,9 @@ export const TestGeometry = {
     coordinates: coords ?? [
       [
         [106.6297, 10.8231],
-        [106.6400, 10.8231],
-        [106.6400, 10.8320],
-        [106.6297, 10.8320],
+        [106.64, 10.8231],
+        [106.64, 10.832],
+        [106.6297, 10.832],
         [106.6297, 10.8231],
       ],
     ],
@@ -152,22 +162,24 @@ export const TestGeometry = {
 /**
  * Create a test version data object (for Versioning module).
  */
-export function createTestVersion(overrides?: Partial<{
-  id: string;
-  featureId: string;
-  versionNumber: number;
-  changeType: string;
-  snapshotProperties: object;
-  snapshotName: string;
-  diff: object | null;
-  authorId: string;
-  message: string | null;
-  parentVersionId: string | null;
-  vertexCount: number | null;
-  areaSqm: number | null;
-  lengthM: number | null;
-  createdAt: Date;
-}>) {
+export function createTestVersion(
+  overrides?: Partial<{
+    id: string;
+    featureId: string;
+    versionNumber: number;
+    changeType: string;
+    snapshotProperties: object;
+    snapshotName: string;
+    diff: object | null;
+    authorId: string;
+    message: string | null;
+    parentVersionId: string | null;
+    vertexCount: number | null;
+    areaSqm: number | null;
+    lengthM: number | null;
+    createdAt: Date;
+  }>,
+) {
   return {
     id: overrides?.id ?? uuidv4(),
     featureId: overrides?.featureId ?? uuidv4(),

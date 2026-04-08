@@ -56,9 +56,9 @@ async function bootstrap() {
   // ─── Validation Pipe (class-validator) ───────────────
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,          // Strip unknown properties
+      whitelist: true, // Strip unknown properties
       forbidNonWhitelisted: true, // Throw on unknown properties
-      transform: true,          // Auto-transform types
+      transform: true, // Auto-transform types
       transformOptions: {
         enableImplicitConversion: true,
       },
@@ -88,7 +88,10 @@ async function bootstrap() {
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('docs', app, document);
 
-    logger.log(`📚 Swagger docs: http://localhost:${configService.get('PORT')}/docs`, 'Bootstrap');
+    logger.log(
+      `📚 Swagger docs: http://localhost:${configService.get('PORT')}/docs`,
+      'Bootstrap',
+    );
   }
 
   // ─── Graceful Shutdown ─────────────────────────────
@@ -104,14 +107,8 @@ async function bootstrap() {
     `🚀 GeoTrack API running on http://localhost:${port}/${apiPrefix}`,
     'Bootstrap',
   );
-  logger.log(
-    `🏥 Health check: http://localhost:${port}/health`,
-    'Bootstrap',
-  );
-  logger.log(
-    `📊 Environment: ${configService.get('NODE_ENV')}`,
-    'Bootstrap',
-  );
+  logger.log(`🏥 Health check: http://localhost:${port}/health`, 'Bootstrap');
+  logger.log(`📊 Environment: ${configService.get('NODE_ENV')}`, 'Bootstrap');
 }
 
 bootstrap().catch((err) => {

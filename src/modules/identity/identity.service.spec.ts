@@ -15,7 +15,6 @@ import { createTestUser } from '../../../test/helpers/test-factories';
 describe('IdentityService', () => {
   let service: IdentityService;
   let prisma: ReturnType<typeof createMockPrismaService>;
-  let jwtService: JwtService;
 
   beforeEach(async () => {
     prisma = createMockPrismaService();
@@ -46,14 +45,16 @@ describe('IdentityService', () => {
     }).compile();
 
     service = module.get<IdentityService>(IdentityService);
-    jwtService = module.get<JwtService>(JwtService);
   });
 
   // ─── Register ────────────────────────────────────────
 
   describe('register', () => {
     it('should create a new user and return access token', async () => {
-      const user = createTestUser({ email: 'new@test.com', displayName: 'New User' });
+      const user = createTestUser({
+        email: 'new@test.com',
+        displayName: 'New User',
+      });
       (prisma.user!.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user!.create as jest.Mock).mockResolvedValue(user);
 
@@ -99,7 +100,7 @@ describe('IdentityService', () => {
       });
 
       const createCall = (prisma.user!.create as jest.Mock).mock.calls[0][0];
-      const savedHash = createCall.data.passwordHash;
+      const savedHash = createCall.data.passwordHash as string;
 
       // Verify it's a bcrypt hash
       expect(savedHash).toMatch(/^\$2[ab]\$\d{2}\$/);

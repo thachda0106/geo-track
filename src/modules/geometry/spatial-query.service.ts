@@ -15,6 +15,19 @@ export interface SpatialQueryDto {
   limit?: number;
 }
 
+export interface SpatialQueryResultRow {
+  id: string;
+  name: string;
+  geometry_type: string;
+  geometry: Record<string, unknown>;
+  distance_m: number | null;
+}
+
+export interface BufferResultRow {
+  id: string;
+  result_geometry: Record<string, unknown>;
+}
+
 // ─── Service ──────────────────────────────────────────────────
 
 @Injectable()
@@ -43,7 +56,9 @@ export class SpatialQueryService {
         break;
       case 'within_distance':
         if (!dto.params?.distanceMeters) {
-          throw new InvalidGeometryError('distanceMeters required for within_distance operation');
+          throw new InvalidGeometryError(
+            'distanceMeters required for within_distance operation',
+          );
         }
         spatialCondition = `ST_DWithin(
           geometry::geography,
@@ -51,8 +66,12 @@ export class SpatialQueryService {
           ${dto.params.distanceMeters}
         )`;
         break;
-      default:
-        throw new InvalidGeometryError(`Unsupported operation: ${dto.operation}`);
+      default: {
+        const _exhaustcheck: never = dto.operation;
+        throw new InvalidGeometryError(
+          `Unsupported operation: ${String(_exhaustcheck)}`,
+        );
+      }
     }
 
     let typeFilter = '';
@@ -60,7 +79,7 @@ export class SpatialQueryService {
       typeFilter = ` AND geometry_type = '${dto.params.geometryType}'`;
     }
 
-    const results = await this.prisma.$queryRawUnsafe<any[]>(
+    const results = await this.prisma.$queryRawUnsafe<SpatialQueryResultRow[]>(
       `SELECT id, name, geometry_type,
         ST_AsGeoJSON(geometry)::json as geometry,
         ST_Distance(
@@ -87,7 +106,9 @@ export class SpatialQueryService {
         name: r.name,
         geometryType: r.geometry_type,
         geometry: r.geometry,
-        distance: r.distance_m ? Math.round(r.distance_m * 100) / 100 : undefined,
+        distance: r.distance_m
+          ? Math.round(r.distance_m * 100) / 100
+          : undefined,
       })),
       executionTimeMs,
     };
@@ -97,7 +118,7 @@ export class SpatialQueryService {
    * Buffer a feature geometry by distance.
    */
   async bufferFeature(featureId: string, distanceMeters: number) {
-    const [result] = await this.prisma.$queryRawUnsafe<any[]>(
+    const [result] = await this.prisma.$queryRawUnsafe<BufferResultRow[]>(
       `SELECT
         id,
         ST_AsGeoJSON(

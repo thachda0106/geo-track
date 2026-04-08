@@ -42,10 +42,13 @@ export const TEST_USERS: Record<string, TestUser> = {
  * const token = generateTestJwt({ userId: 'custom-id', email: 'custom@test.com', role: 'admin' });
  */
 export function generateTestJwt(userOrRole: TestRole | TestUser): string {
-  const user = typeof userOrRole === 'string' ? TEST_USERS[userOrRole] : userOrRole;
+  const user =
+    typeof userOrRole === 'string' ? TEST_USERS[userOrRole] : userOrRole;
 
   if (!user) {
-    throw new Error(`Unknown test role: ${userOrRole}`);
+    throw new Error(
+      `Unknown test role: ${typeof userOrRole === 'string' ? userOrRole : userOrRole.role}`,
+    );
   }
 
   const jwtService = new JwtService({

@@ -3,11 +3,9 @@ import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 // Extend Express Request to include correlationId
-declare global {
-  namespace Express {
-    interface Request {
-      correlationId: string;
-    }
+declare module 'express' {
+  export interface Request {
+    correlationId?: string;
   }
 }
 
@@ -24,8 +22,7 @@ declare global {
 @Injectable()
 export class CorrelationIdMiddleware implements NestMiddleware {
   use(req: Request, _res: Response, next: NextFunction): void {
-    const correlationId =
-      (req.headers['x-request-id'] as string) || uuidv4();
+    const correlationId = (req.headers['x-request-id'] as string) || uuidv4();
 
     // Attach to request for downstream use
     req.correlationId = correlationId;

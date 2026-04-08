@@ -8,7 +8,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { VersioningService, VersionListQuery, RevertDto } from './versioning.service';
+import {
+  VersioningService,
+  VersionListQuery,
+  RevertDto,
+} from './versioning.service';
 import { Roles, CurrentUser, AuthenticatedUser } from '@app/core';
 
 @Controller('features/:featureId/versions')
@@ -28,7 +32,10 @@ export class VersioningController {
     @Param('featureId') featureId: string,
     @Param('versionNumber') versionNumber: string,
   ) {
-    return this.versioningService.getVersion(featureId, parseInt(versionNumber, 10));
+    return this.versioningService.getVersion(
+      featureId,
+      parseInt(versionNumber, 10),
+    );
   }
 
   @Get(':v1/diff/:v2')

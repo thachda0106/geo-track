@@ -15,18 +15,26 @@ describe('Versioning Integration (Integration)', () => {
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true }), EventEmitterModule.forRoot(), PrismaModule, OutboxModule, VersioningModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
+        EventEmitterModule.forRoot(),
+        PrismaModule,
+        OutboxModule,
+        VersioningModule,
+      ],
     }).compile();
 
     prisma = moduleRef.get<PrismaService>(PrismaService);
     versioningService = moduleRef.get<VersioningService>(VersioningService);
 
     // Setup Test Admin User
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE email = 'versioning_test@test.com'`);
-    const [user] = await prisma.$queryRawUnsafe<any[]>(
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE email = 'versioning_test@test.com'`,
+    );
+    const [user] = await prisma.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO identity.users (email, password_hash, display_name, role)
        VALUES ('versioning_test@test.com', 'hash', 'Test Ver', 'admin')
-       RETURNING id`
+       RETURNING id`,
     );
     testUserId = user.id;
 
@@ -36,8 +44,14 @@ describe('Versioning Integration (Integration)', () => {
   });
 
   afterAll(async () => {
-    await prisma.$queryRawUnsafe(`DELETE FROM versioning.versions WHERE author_id = $1::uuid`, testUserId);
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE id = $1::uuid`, testUserId);
+    await prisma.$queryRawUnsafe(
+      `DELETE FROM versioning.versions WHERE author_id = $1::uuid`,
+      testUserId,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE id = $1::uuid`,
+      testUserId,
+    );
     await moduleRef.close();
   });
 
@@ -45,7 +59,7 @@ describe('Versioning Integration (Integration)', () => {
     it('should create an initial version correctly via PostGIS', async () => {
       const geoJson = {
         type: 'Point',
-        coordinates: [100.0, 0.0]
+        coordinates: [100.0, 0.0],
       };
 
       await versioningService.createInitialVersion({
@@ -67,7 +81,7 @@ describe('Versioning Integration (Integration)', () => {
     it('should increment version correctly on update', async () => {
       const geoJson = {
         type: 'Point',
-        coordinates: [101.0, 1.0]
+        coordinates: [101.0, 1.0],
       };
 
       await versioningService.createVersionSnapshot({
@@ -81,8 +95,8 @@ describe('Versioning Integration (Integration)', () => {
 
       const history = await versioningService.listVersions(testFeatureId, {});
       expect(history.data.length).toBe(2);
-      
-      const v2 = history.data.find(h => h.versionNumber === 2);
+
+      const v2 = history.data.find((h) => h.versionNumber === 2);
       expect(v2).toBeDefined();
       expect(v2!.changeType).toBe('updated');
     });

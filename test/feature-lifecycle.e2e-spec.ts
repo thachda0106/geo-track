@@ -4,6 +4,7 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '@app/core';
 import { JwtService } from '@nestjs/jwt';
+import { Server } from 'http';
 
 describe('Feature Lifecycle (e2e) Vertical Slice', () => {
   let app: INestApplication;
@@ -25,26 +26,35 @@ describe('Feature Lifecycle (e2e) Vertical Slice', () => {
     jwtService = app.get(JwtService);
 
     // 1. Setup Test Admin User
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE email = 'admin@test.com'`);
-    const [user] = await prisma.$queryRawUnsafe<any[]>(
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE email = 'admin@test.com'`,
+    );
+    const [user] = await prisma.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO identity.users (email, password_hash, display_name, role)
        VALUES ('admin@test.com', 'hash', 'Test Admin', 'admin')
-       RETURNING id`
+       RETURNING id`,
     );
     testUserId = user.id;
 
     // 2. Generate Token manually for bypassing actual login
-    adminToken = jwtService.sign({ sub: testUserId, email: 'admin@test.com', role: 'admin' });
+    adminToken = jwtService.sign({
+      sub: testUserId,
+      email: 'admin@test.com',
+      role: 'admin',
+    });
   });
 
   afterAll(async () => {
-    await prisma.$executeRawUnsafe(`DELETE FROM identity.users WHERE id = $1::uuid`, testUserId);
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM identity.users WHERE id = $1::uuid`,
+      testUserId,
+    );
     await app.close();
   });
 
   it('should create a feature, relay the event, and record version 1 snapshot', async () => {
     // 1. Create a feature via HTTP (Geometry Module)
-    const createRes = await request(app.getHttpServer())
+    const createRes = await request(app.getHttpServer() as Server)
       .post('/features')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
@@ -66,17 +76,17 @@ describe('Feature Lifecycle (e2e) Vertical Slice', () => {
     const featureId = createRes.body.id;
 
     // 2. Wait for Event Relay (Cron runs every second)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // 3. Verify Versioning Module consumed the event
-    const versionsRes = await request(app.getHttpServer())
+    const versionsRes = await request(app.getHttpServer() as Server)
       .get(`/features/${featureId}/versions`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
     expect(versionsRes.body.data.length).toBe(1); // Should have exactly 1 version recorded
     const v1 = versionsRes.body.data[0];
-    
+
     expect(v1.versionNumber).toBe(1);
     expect(v1.changeType).toBe('created');
     expect(v1.author.id).toBe(testUserId);

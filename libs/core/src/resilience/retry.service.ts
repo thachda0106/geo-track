@@ -84,7 +84,7 @@ export class RetryService {
     }
 
     // TypeScript: unreachable, but satisfies compiler
-    throw lastError;
+    throw lastError || new Error('Retry exhausted without error');
   }
 
   /**

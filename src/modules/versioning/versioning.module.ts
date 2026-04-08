@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { OutboxModule } from '@app/core';
-import { VersioningController, FeatureVersionController } from './versioning.controller';
+import {
+  VersioningController,
+  FeatureVersionController,
+} from './versioning.controller';
 import { VersioningService } from './versioning.service';
 import { VersioningConsumer } from './versioning.consumer';
 
@@ -11,4 +14,3 @@ import { VersioningConsumer } from './versioning.consumer';
   exports: [VersioningService],
 })
 export class VersioningModule {}
-

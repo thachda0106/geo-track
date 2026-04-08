@@ -1,4 +1,8 @@
-import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/common';
+import {
+  SetMetadata,
+  createParamDecorator,
+  ExecutionContext,
+} from '@nestjs/common';
 import { AuthenticatedUser } from './jwt.strategy';
 
 // ═══════════════════════════════════════════════════════
@@ -18,7 +22,9 @@ export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 // ═══════════════════════════════════════════════════════
 export const CurrentUser = createParamDecorator(
   (data: keyof AuthenticatedUser | undefined, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
+    const request = ctx
+      .switchToHttp()
+      .getRequest<{ user: AuthenticatedUser }>();
     const user: AuthenticatedUser = request.user;
 
     return data ? user?.[data] : user;

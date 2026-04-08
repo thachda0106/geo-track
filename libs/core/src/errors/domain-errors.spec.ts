@@ -20,7 +20,11 @@ describe('DomainErrors', () => {
   describe('ValidationError', () => {
     it('should have 400 status and VALIDATION_ERROR code', () => {
       const errors = [
-        { field: 'email', code: 'INVALID_FORMAT', message: 'Must be a valid email' },
+        {
+          field: 'email',
+          code: 'INVALID_FORMAT',
+          message: 'Must be a valid email',
+        },
       ];
       const error = new ValidationError(errors);
 
@@ -34,7 +38,11 @@ describe('DomainErrors', () => {
     it('should support multiple validation errors', () => {
       const errors = [
         { field: 'email', code: 'REQUIRED', message: 'Email is required' },
-        { field: 'password', code: 'MIN_LENGTH', message: 'Password must be at least 8 characters' },
+        {
+          field: 'password',
+          code: 'MIN_LENGTH',
+          message: 'Password must be at least 8 characters',
+        },
       ];
       const error = new ValidationError(errors);
       expect(error.errors).toHaveLength(2);
@@ -120,7 +128,11 @@ describe('DomainErrors', () => {
 describe('toProblemDetails', () => {
   it('should convert NotFoundError to RFC 7807 format', () => {
     const error = new NotFoundError('Feature', 'abc-123');
-    const problem = toProblemDetails(error, '/api/v1/features/abc-123', 'req-456');
+    const problem = toProblemDetails(
+      error,
+      '/api/v1/features/abc-123',
+      'req-456',
+    );
 
     expect(problem).toEqual({
       type: 'https://api.geotrack.app/errors/not-found',
@@ -146,7 +158,9 @@ describe('toProblemDetails', () => {
     const error = new ConflictError('Feature', 1, 2);
     const problem = toProblemDetails(error);
 
-    expect(problem.type).toBe('https://api.geotrack.app/errors/version-conflict');
+    expect(problem.type).toBe(
+      'https://api.geotrack.app/errors/version-conflict',
+    );
   });
 
   it('should handle missing optional fields', () => {

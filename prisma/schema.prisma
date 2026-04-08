@@ -3,13 +3,12 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema", "postgresqlExtensions"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
   extensions = [postgis, uuid_ossp(map: "uuid-ossp")]
   schemas    = ["identity", "geometry", "versioning", "tracking", "public"]
 }
@@ -107,12 +106,29 @@ model Outbox {
   correlationId String    @map("correlation_id") @db.Uuid
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   publishedAt   DateTime? @map("published_at") @db.Timestamptz()
+  retryCount    Int       @default(0) @map("retry_count")
+  maxRetries    Int       @default(3) @map("max_retries")
+  lastError     String?   @map("last_error") @db.Text
+  failedAt      DateTime? @map("failed_at") @db.Timestamptz()
 
   @@index([createdAt])
   @@map("outbox")
   @@schema("geometry")
 }
 
+model OutboxDlq {
+  id            BigInt    @id @default(autoincrement())
+  originalId    BigInt    @map("original_id")
+  eventType     String    @map("event_type") @db.VarChar(100)
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  payload       Json
+  errorMessage  String    @map("error_message") @db.Text
+  retryCount    Int       @map("retry_count")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("outbox_dlq")
+  @@schema("geometry")
+}
 // ═══════════════════════════════════════════════════════
 // VERSIONING SCHEMA
 // ═══════════════════════════════════════════════════════

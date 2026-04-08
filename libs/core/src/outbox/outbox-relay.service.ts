@@ -7,13 +7,13 @@ import { PrismaService } from '../prisma/prisma.service';
 /**
  * Polling relay that reads unpublished events from the outbox
  * and emits them to the internal Event Bus.
- * 
+ *
  * Safety guarantees:
  * - Uses FOR UPDATE SKIP LOCKED to avoid double-processing across replicas
  * - Only marks events as published after successful emission
  * - Failed events remain in outbox for retry on next poll
  * - Periodically cleans up stale published events to prevent table bloat
- * 
+ *
  * In a distributed setup, this service would physically publish
  * to a message broker like Kafka/Redpanda instead of EventEmitter.
  */
@@ -37,13 +37,19 @@ export class OutboxRelayService {
       // 1. Fetch unpublished events (polls 'geometry' schema outbox)
       // Note: In a multi-schema setup, we'd poll all outboxes or have dedicated relays
       await this.prisma.$transaction(async (tx) => {
-        const events = await this.outboxService.fetchUnpublished(tx, 50, 'geometry');
-        
+        const events = await this.outboxService.fetchUnpublished(
+          tx,
+          50,
+          'geometry',
+        );
+
         if (events.length === 0) {
           return; // No events, exit transaction
         }
 
-        this.logger.debug(`Found ${events.length} unpublished events in outbox.`);
+        this.logger.debug(
+          `Found ${events.length} unpublished events in outbox.`,
+        );
 
         const publishedIds: bigint[] = [];
         const failedIds: bigint[] = [];
@@ -51,15 +57,20 @@ export class OutboxRelayService {
         // 2. Publish locally (in memory)
         for (const event of events) {
           try {
+            const safeEvent = event as unknown as Record<string, unknown>;
+            const eventType = (safeEvent.event_type ||
+              safeEvent.eventType) as string;
+            const correlationId = (safeEvent.correlation_id ||
+              safeEvent.correlationId) as string;
+
             // Fire event locally (idempotent consumers will handle it)
-            this.eventEmitter.emit((event as any).event_type || event.eventType, {
+            this.eventEmitter.emit(eventType, {
               ...event.payload,
               _eventId: event.id,
-              _correlationId: (event as any).correlation_id || event.correlationId,
+              _correlationId: correlationId,
             });
 
             publishedIds.push(event.id);
-            
           } catch (err) {
             const error = err as Error;
             this.logger.error(
@@ -68,14 +79,31 @@ export class OutboxRelayService {
             );
 
             // DLQ Logic
-            const retryCount = (event as any).retry_count ?? 0;
-            const maxRetries = (event as any).max_retries ?? 5;
+            const safeEvent = event as unknown as Record<string, unknown>;
+            const retryCount = (safeEvent.retry_count ??
+              safeEvent.retryCount ??
+              0) as number;
+            const maxRetries = (safeEvent.max_retries ??
+              safeEvent.maxRetries ??
+              5) as number;
 
             if (retryCount >= maxRetries) {
-              await this.outboxService.moveToDeadLetter(tx, event, error.message, 'geometry');
-              this.logger.warn(`Event ${event.id} permanently failed and moved to DLQ after ${retryCount} retries.`);
+              await this.outboxService.moveToDeadLetter(
+                tx,
+                event,
+                error.message,
+                'geometry',
+              );
+              this.logger.warn(
+                `Event ${event.id} permanently failed and moved to DLQ after ${retryCount} retries.`,
+              );
             } else {
-              await this.outboxService.incrementRetry(tx, event.id, error.message, 'geometry');
+              await this.outboxService.incrementRetry(
+                tx,
+                event.id,
+                error.message,
+                'geometry',
+              );
               failedIds.push(event.id); // Track so we can log it
             }
           }
@@ -125,10 +153,7 @@ export class OutboxRelayService {
       }
     } catch (err) {
       const error = err as Error;
-      this.logger.error(
-        `Outbox cleanup failed: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Outbox cleanup failed: ${error.message}`, error.stack);
     }
   }
 }

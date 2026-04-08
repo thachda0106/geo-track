@@ -3,12 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '@app/core';
-import {
-  NotFoundError,
-  DuplicateError,
-  ForbiddenError,
-} from '@app/core';
-import { AuthenticatedUser } from '@app/core';
+import { NotFoundError, DuplicateError, ForbiddenError } from '@app/core';
 
 // ─── DTOs ─────────────────────────────────────────────────────
 export interface RegisterDto {
@@ -77,7 +72,8 @@ export class IdentityService {
 
     return {
       accessToken,
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION') || '15m',
+      expiresIn:
+        this.configService.get<string>('JWT_ACCESS_EXPIRATION') || '15m',
       user: {
         id: user.id,
         email: user.email,
@@ -105,7 +101,10 @@ export class IdentityService {
       throw new ForbiddenError('Account is suspended');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!isPasswordValid) {
       throw new ForbiddenError('Invalid credentials');
@@ -121,7 +120,8 @@ export class IdentityService {
 
     return {
       accessToken,
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRATION') || '15m',
+      expiresIn:
+        this.configService.get<string>('JWT_ACCESS_EXPIRATION') || '15m',
       user: {
         id: user.id,
         email: user.email,
@@ -154,7 +154,11 @@ export class IdentityService {
     return user;
   }
 
-  private generateAccessToken(user: { id: string; email: string; role: string }): string {
+  private generateAccessToken(user: {
+    id: string;
+    email: string;
+    role: string;
+  }): string {
     return this.jwtService.sign({
       sub: user.id,
       email: user.email,
