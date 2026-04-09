@@ -45,6 +45,9 @@ export const envSchema = z.object({
   TRACKING_MAX_BATCH_SIZE: z.coerce.number().default(100),
   TRACKING_MAX_SPEED_KMH: z.coerce.number().default(200),
   TRACKING_ACCURACY_THRESHOLD_M: z.coerce.number().default(50),
+
+  // Ingest API Key (machine-to-machine auth for IoT devices)
+  INGEST_API_KEY: z.string().min(32).optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -16,7 +16,6 @@ import {
   UpdateFeatureDto,
   FeatureListQuery,
 } from './application/dtos/geometry.dto';
-import { SpatialQueryDto } from './application/dtos/spatial-query.dto';
 import { CreateFeatureUseCase } from './application/use-cases/create-feature.use-case';
 import { UpdateFeatureUseCase } from './application/use-cases/update-feature.use-case';
 import { DeleteFeatureUseCase } from './application/use-cases/delete-feature.use-case';
@@ -33,6 +32,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 
 @ApiTags('Features')
@@ -78,6 +78,7 @@ export class GeometryController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single feature by ID' })
+  @ApiParam({ name: 'id', description: 'Feature ID (UUID)' })
   @ApiResponse({ status: 200, description: 'Feature found' })
   @ApiResponse({ status: 404, description: 'Feature not found' })
   async findOne(@Param('id') id: string) {
@@ -90,6 +91,7 @@ export class GeometryController {
     summary: 'Update a geometric feature',
     description: 'Requires expectedVersion for optimistic locking',
   })
+  @ApiParam({ name: 'id', description: 'Feature ID (UUID)' })
   @ApiBody({ type: UpdateFeatureDto })
   @ApiResponse({ status: 200, description: 'Feature successfully updated' })
   @ApiResponse({ status: 409, description: 'Conflict: version mismatch' })
@@ -105,6 +107,7 @@ export class GeometryController {
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Soft delete a feature' })
+  @ApiParam({ name: 'id', description: 'Feature ID (UUID)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -123,6 +126,7 @@ export class GeometryController {
 
   @Post(':id/buffer')
   @ApiOperation({ summary: 'Calculate buffer polygon for feature' })
+  @ApiParam({ name: 'id', description: 'Feature ID (UUID)' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -135,24 +139,5 @@ export class GeometryController {
     @Body('distanceMeters') distanceMeters: number,
   ) {
     return this.spatialQueries.bufferFeature(id, distanceMeters);
-  }
-}
-
-// Separate controller for spatial queries (different path)
-@ApiTags('Spatial')
-@ApiBearerAuth('JWT')
-@Controller('spatial')
-export class SpatialController {
-  constructor(
-    @Inject(SPATIAL_QUERIES)
-    private readonly spatialQueries: ISpatialQueries,
-  ) {}
-
-  @Post('query')
-  @ApiOperation({ summary: 'Execute raw spatial query (PostGIS)' })
-  @ApiBody({ type: SpatialQueryDto })
-  @ApiResponse({ status: 201, description: 'Query results returned' })
-  async query(@Body() dto: SpatialQueryDto) {
-    return this.spatialQueries.executeSpatialQuery(dto);
   }
 }

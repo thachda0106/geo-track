@@ -43,7 +43,7 @@ services:
   # Redpanda (Kafka-compatible, lighter for dev)
   # ═══════════════════════════════════════════════════════
   redpanda:
-    image: redpandadata/redpanda:latest
+    image: redpandadata/redpanda:v24.3.1
     container_name: geotrack-redpanda
     restart: unless-stopped
     command:
@@ -70,7 +70,7 @@ services:
   # Redpanda Console (Kafka UI for dev)
   # ═══════════════════════════════════════════════════════
   redpanda-console:
-    image: redpandadata/console:latest
+    image: redpandadata/console:v2.8.1
     container_name: geotrack-console
     restart: unless-stopped
     ports:

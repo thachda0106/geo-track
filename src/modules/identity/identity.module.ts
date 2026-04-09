@@ -30,9 +30,8 @@ import { NestJwtTokenService } from './infrastructure/security/nest-jwt-token.se
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),
         signOptions: {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION') as any,
-          algorithm: 'HS256',
+          expiresIn: config.getOrThrow('JWT_ACCESS_EXPIRATION'),
+          algorithm: 'HS256' as const,
         },
       }),
     }),

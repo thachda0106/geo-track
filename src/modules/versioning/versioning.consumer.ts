@@ -22,6 +22,13 @@ interface FeatureUpdatedEvent {
   updatedBy: string;
 }
 
+interface FeatureDeletedEvent {
+  _correlationId: string;
+  featureId: string;
+  lastVersion: number;
+  deletedBy: string;
+}
+
 /**
  * Listens to domain events and creates versions idempotently.
  */
@@ -69,6 +76,22 @@ export class VersioningConsumer {
         properties: event.properties,
         name: event.name,
         authorId: event.updatedBy,
+      });
+    });
+  }
+
+  @OnEvent('FeatureDeleted')
+  async handleFeatureDeleted(event: FeatureDeletedEvent) {
+    const eventId = event._correlationId;
+
+    await this.inboxService.processOnce(eventId, 'FeatureDeleted', async () => {
+      this.logger.log(
+        `Processing FeatureDeleted: Recording deletion snapshot for feature ${event.featureId}`,
+      );
+      await this.createVersionUseCase.createDeletionVersion({
+        featureId: event.featureId,
+        lastVersion: event.lastVersion,
+        authorId: event.deletedBy,
       });
     });
   }

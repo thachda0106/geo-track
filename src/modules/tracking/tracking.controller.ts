@@ -20,6 +20,7 @@ import {
   Public,
   AuthenticatedUser,
   NotFoundError,
+  UseApiKey,
 } from '@app/core';
 import {
   ApiTags,
@@ -95,7 +96,7 @@ export class TrackingController {
 
   @Patch(':id/end')
   @ApiOperation({ summary: 'End an active tracking session' })
-  @ApiParam({ name: 'id', description: 'Session ID' })
+  @ApiParam({ name: 'id', description: 'Session ID (UUID)' })
   @ApiResponse({ status: 200, description: 'Session ended' })
   @ApiResponse({ status: 400, description: 'Session is already ended' })
   async endSession(@Param('id') id: string) {
@@ -139,7 +140,8 @@ export class TrackingIngestController {
   ) {}
 
   @Post('ingest')
-  @Public() // Auth via API key (not JWT) — handled in middleware for production
+  @Public() // Bypass JWT — IoT devices don't use user tokens
+  @UseApiKey() // Require X-API-Key header instead
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Ingest location points (High throughput)',

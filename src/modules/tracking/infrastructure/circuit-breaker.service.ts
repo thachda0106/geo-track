@@ -27,13 +27,15 @@ export class LocationCacheService {
     });
 
     this.breaker.on('open', () =>
-      this.logger.warn('Redis circuit breaker OPEN - DB under pressure'),
+      this.logger.warn(
+        'Postgres circuit breaker OPEN — database under pressure',
+      ),
     );
     this.breaker.on('halfOpen', () =>
-      this.logger.warn('Circuit breaker HALF-OPEN'),
+      this.logger.warn('Postgres circuit breaker HALF-OPEN — testing recovery'),
     );
     this.breaker.on('close', () =>
-      this.logger.log('Circuit breaker CLOSED - recovered'),
+      this.logger.log('Postgres circuit breaker CLOSED — recovered'),
     );
   }
 

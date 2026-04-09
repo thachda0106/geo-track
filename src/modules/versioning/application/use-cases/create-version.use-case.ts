@@ -18,6 +18,12 @@ export interface CreateVersionSnapshotDto {
   authorId: string;
 }
 
+export interface CreateDeletionVersionDto {
+  featureId: string;
+  lastVersion: number;
+  authorId: string;
+}
+
 /**
  * Encapsulates the write side of the versioning boundaries exclusively invoked by internal domain events (Inbox)
  */
@@ -60,6 +66,33 @@ export class CreateVersionUseCase {
       JSON.stringify(data.geometry),
       JSON.stringify(data.properties || {}),
       data.name,
+      data.authorId,
+    );
+  }
+
+  async createDeletionVersion(data: CreateDeletionVersionDto) {
+    // Record a deletion version by copying the last known snapshot
+    // and marking it with change_type 'deleted'
+    await this.prisma.$queryRawUnsafe(
+      `INSERT INTO versioning.versions
+        (id, feature_id, version_number, change_type,
+         snapshot_geometry, snapshot_properties, snapshot_name,
+         author_id, message)
+      SELECT
+        gen_random_uuid(),
+        v.feature_id,
+        $2 + 1,
+        'deleted',
+        v.snapshot_geometry,
+        v.snapshot_properties,
+        v.snapshot_name,
+        $3::uuid,
+        'Feature deleted'
+      FROM versioning.versions v
+      WHERE v.feature_id = $1::uuid AND v.version_number = $2
+      LIMIT 1`,
+      data.featureId,
+      data.lastVersion,
       data.authorId,
     );
   }

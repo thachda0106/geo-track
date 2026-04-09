@@ -15,14 +15,14 @@
 # ═══════════════════════════════════════════════════════
 
 # ─── Stage 1: Install Production Dependencies ─────────
-FROM node:20-alpine AS deps
+FROM node:20.19-alpine3.20 AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # ─── Stage 2: Build ───────────────────────────────────
-FROM node:20-alpine AS build
+FROM node:20.19-alpine3.20 AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -41,7 +41,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ─── Stage 3: Base Production Image ──────────────────
-FROM node:20-alpine AS base
+FROM node:20.19-alpine3.20 AS base
 WORKDIR /app
 
 # Security: non-root user

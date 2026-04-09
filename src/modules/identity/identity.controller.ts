@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Get,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { RegisterDto, LoginDto } from './application/dtos/identity.dto';
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { LoginUserUseCase } from './application/use-cases/login-user.use-case';
@@ -29,6 +30,7 @@ export class IdentityController {
   ) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
@@ -38,6 +40,7 @@ export class IdentityController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
