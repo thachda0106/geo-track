@@ -86,11 +86,41 @@ map-history/
 ├── src/                           # Application source
 │   ├── main.ts                    # Bootstrap (Helmet, CORS, Swagger)
 │   ├── app.module.ts              # Root module wiring
-│   └── modules/                   # Bounded Context Modules
+│   └── modules/                   # Bounded Context Modules (DDD)
 │       ├── identity/              # Auth, users, RBAC
+│       │   ├── presentation/      # HTTP Controllers (Presentation Layer)
+│       │   │   └── identity.controller.ts
+│       │   ├── application/       # Use Cases, DTOs, Ports
+│       │   ├── domain/            # Entities, Value Objects, Domain Logic
+│       │   ├── infrastructure/    # Prisma Repos, JWT, Bcrypt Adapters
+│       │   └── identity.module.ts
+│       │
 │       ├── geometry/              # Feature CRUD + PostGIS spatial
+│       │   ├── presentation/      # HTTP Controllers (Presentation Layer)
+│       │   │   ├── geometry.controller.ts
+│       │   │   └── spatial.controller.ts
+│       │   ├── application/       # Use Cases, DTOs, Query interfaces
+│       │   ├── domain/            # Feature entities, Geometry VOs
+│       │   ├── infrastructure/    # Prisma + raw PostGIS query adapters
+│       │   └── geometry.module.ts
+│       │
 │       ├── versioning/            # Version history, timeline, revert
+│       │   ├── presentation/      # HTTP Controllers + Event Consumers
+│       │   │   ├── versioning.controller.ts
+│       │   │   └── versioning.consumer.ts
+│       │   ├── application/       # Use Cases, DTOs
+│       │   ├── domain/            # Version aggregate, diff logic
+│       │   ├── infrastructure/    # Prisma persistence adapters
+│       │   └── versioning.module.ts
+│       │
 │       └── tracking/              # GPS sessions, locations, trails
+│           ├── presentation/      # HTTP Controllers (Presentation Layer)
+│           │   ├── tracking-sessions.controller.ts
+│           │   └── tracking-ingest.controller.ts
+│           ├── application/       # Use Cases, DTOs
+│           ├── domain/            # Session aggregate, Location VO
+│           ├── infrastructure/    # Prisma + TimescaleDB adapters
+│           └── tracking.module.ts
 │
 ├── prisma/
 │   └── schema.prisma              # Multi-schema (identity, geometry, versioning, tracking)
@@ -106,6 +136,7 @@ map-history/
 ├── .env.example                   # Environment template
 └── package.json                   # Dependencies & scripts
 ```
+
 
 ## 🏗️ Architecture
 

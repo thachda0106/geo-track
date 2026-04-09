@@ -5,7 +5,7 @@ import { OutboxModule } from '@app/core';
 import {
   VersioningController,
   FeatureVersionController,
-} from './versioning.controller';
+} from './presentation/versioning.controller';
 
 // Use Cases & Queries
 import { RevertFeatureUseCase } from './application/use-cases/revert-feature.use-case';
@@ -17,7 +17,7 @@ import { FEATURE_VERSION_REPOSITORY } from './domain/repositories/feature-versio
 import { PrismaFeatureVersionRepository } from './infrastructure/persistence/prisma-feature-version.repository';
 
 // Consumers
-import { VersioningConsumer } from './versioning.consumer';
+import { VersioningConsumer } from './presentation/versioning.consumer';
 
 @Module({
   imports: [OutboxModule],

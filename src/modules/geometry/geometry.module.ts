@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { GeometryController } from './geometry.controller';
-import { SpatialController } from './spatial.controller';
+import { GeometryController } from './presentation/geometry.controller';
+import { SpatialController } from './presentation/spatial.controller';
 
 // Use Cases
 import { CreateFeatureUseCase } from './application/use-cases/create-feature.use-case';

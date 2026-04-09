@@ -1,9 +1,9 @@
 import { Controller, Post, Body, Inject } from '@nestjs/common';
-import { SpatialQueryDto } from './application/dtos/spatial-query.dto';
+import { SpatialQueryDto } from '../application/dtos/spatial-query.dto';
 import {
   SPATIAL_QUERIES,
   ISpatialQueries,
-} from './application/use-cases/queries/geometry-queries.interface';
+} from '../application/use-cases/queries/geometry-queries.interface';
 import {
   ApiTags,
   ApiOperation,

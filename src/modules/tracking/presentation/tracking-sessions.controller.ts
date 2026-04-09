@@ -12,15 +12,12 @@ import {
 import {
   CreateSessionDto,
   LocationQuery,
-  IngestLocationDto,
-} from './application/dtos/tracking.dto';
+} from '../application/dtos/tracking.dto';
 import {
   Roles,
   CurrentUser,
-  Public,
   AuthenticatedUser,
   NotFoundError,
-  UseApiKey,
 } from '@app/core';
 import {
   ApiTags,
@@ -32,10 +29,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 
-import { StartSessionUseCase } from './application/use-cases/start-session.use-case';
-import { EndSessionUseCase } from './application/use-cases/end-session.use-case';
-import { TrackingQueriesService } from './application/use-cases/queries/tracking-queries.service';
-import { IngestLocationsUseCase } from './application/use-cases/ingest-locations.use-case';
+import { StartSessionUseCase } from '../application/use-cases/start-session.use-case';
+import { EndSessionUseCase } from '../application/use-cases/end-session.use-case';
+import { TrackingQueriesService } from '../application/use-cases/queries/tracking-queries.service';
 
 @ApiTags('Tracking Sessions')
 @ApiBearerAuth('JWT')
@@ -85,10 +81,8 @@ export class TrackingController {
   @ApiResponse({ status: 200, description: 'Session found' })
   @ApiResponse({ status: 404, description: 'Session not found' })
   async getSession(@Param('id') id: string) {
-    // Note: Can use a query model here directly instead of Domain
     const session = await this.queriesService.getSessionOverview(id);
     if (!session) {
-      // Return 404 or throw NotFoundError (we are checking in service mostly)
       throw new NotFoundError('TrackingSession', id);
     }
     return session;
@@ -129,32 +123,5 @@ export class TrackingController {
     @Query('to') to?: string,
   ) {
     return this.queriesService.getTrail(id, from, to);
-  }
-}
-
-@ApiTags('Tracking Ingest')
-@Controller('tracking')
-export class TrackingIngestController {
-  constructor(
-    private readonly ingestLocationsUseCase: IngestLocationsUseCase,
-  ) {}
-
-  @Post('ingest')
-  @Public() // Bypass JWT — IoT devices don't use user tokens
-  @UseApiKey() // Require X-API-Key header instead
-  @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({
-    summary: 'Ingest location points (High throughput)',
-    description:
-      'Expects an array of GPS points. Validates API Key in production.',
-  })
-  @ApiBody({ type: IngestLocationDto })
-  @ApiResponse({ status: 202, description: 'Payload accepted for processing' })
-  @ApiResponse({
-    status: 400,
-    description: 'Session is not active or invalid payload',
-  })
-  async ingest(@Body() dto: IngestLocationDto) {
-    return this.ingestLocationsUseCase.execute(dto);
   }
 }

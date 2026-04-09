@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
-import {
-  TrackingController,
-  TrackingIngestController,
-} from './tracking.controller';
+import { TrackingController } from './presentation/tracking-sessions.controller';
+import { TrackingIngestController } from './presentation/tracking-ingest.controller';
 
 // Use Cases & Services
 import { StartSessionUseCase } from './application/use-cases/start-session.use-case';

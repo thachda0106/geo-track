@@ -15,16 +15,16 @@ import {
   CreateFeatureDto,
   UpdateFeatureDto,
   FeatureListQuery,
-} from './application/dtos/geometry.dto';
-import { CreateFeatureUseCase } from './application/use-cases/create-feature.use-case';
-import { UpdateFeatureUseCase } from './application/use-cases/update-feature.use-case';
-import { DeleteFeatureUseCase } from './application/use-cases/delete-feature.use-case';
+} from '../application/dtos/geometry.dto';
+import { CreateFeatureUseCase } from '../application/use-cases/create-feature.use-case';
+import { UpdateFeatureUseCase } from '../application/use-cases/update-feature.use-case';
+import { DeleteFeatureUseCase } from '../application/use-cases/delete-feature.use-case';
 import {
   FEATURE_QUERIES,
   SPATIAL_QUERIES,
   IFeatureQueries,
   ISpatialQueries,
-} from './application/use-cases/queries/geometry-queries.interface';
+} from '../application/use-cases/queries/geometry-queries.interface';
 import { Roles, CurrentUser, AuthenticatedUser } from '@app/core';
 import {
   ApiTags,

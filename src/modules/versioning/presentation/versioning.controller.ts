@@ -8,10 +8,10 @@ import {
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
-import { RevertDto, VersionListQuery } from './application/dtos/versioning.dto';
+import { RevertDto, VersionListQuery } from '../application/dtos/versioning.dto';
 import { Roles, CurrentUser, AuthenticatedUser } from '@app/core';
-import { RevertFeatureUseCase } from './application/use-cases/revert-feature.use-case';
-import { VersioningQueriesService } from './application/use-cases/queries/versioning-queries.service';
+import { RevertFeatureUseCase } from '../application/use-cases/revert-feature.use-case';
+import { VersioningQueriesService } from '../application/use-cases/queries/versioning-queries.service';
 
 @ApiTags('Features Timeline')
 @ApiBearerAuth('JWT')

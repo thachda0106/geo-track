@@ -12,12 +12,12 @@ import {
   LoginDto,
   RefreshTokenDto,
   LogoutDto,
-} from './application/dtos/identity.dto';
-import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
-import { LoginUserUseCase } from './application/use-cases/login-user.use-case';
-import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
-import { LogoutUseCase } from './application/use-cases/logout.use-case';
-import { IdentityQueriesService } from './application/use-cases/queries/identity-queries.service';
+} from '../application/dtos/identity.dto';
+import { RegisterUserUseCase } from '../application/use-cases/register-user.use-case';
+import { LoginUserUseCase } from '../application/use-cases/login-user.use-case';
+import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case';
+import { LogoutUseCase } from '../application/use-cases/logout.use-case';
+import { IdentityQueriesService } from '../application/use-cases/queries/identity-queries.service';
 
 import {
   ApiTags,
@@ -99,7 +99,7 @@ export class IdentityController {
 
   @Get('profile')
   @ApiBearerAuth('JWT')
-  @Roles('viewer', 'editor', 'admin') // Require any valid role
+  @Roles('viewer', 'editor', 'admin')
   @ApiOperation({ summary: 'Get current logged-in user profile' })
   @ApiResponse({ status: 200, description: 'Returns user profile' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InboxService } from '@app/core';
-import { CreateVersionUseCase } from './application/use-cases/create-version.use-case';
+import { CreateVersionUseCase } from '../application/use-cases/create-version.use-case';
 
 interface FeatureCreatedEvent {
   _correlationId: string;
@@ -43,7 +43,6 @@ export class VersioningConsumer {
 
   @OnEvent('FeatureCreated')
   async handleFeatureCreated(event: FeatureCreatedEvent) {
-    // Process idempotently using the correlationId exactly as dispatched
     const eventId = event._correlationId;
 
     await this.inboxService.processOnce(eventId, 'FeatureCreated', async () => {
@@ -68,7 +67,6 @@ export class VersioningConsumer {
       this.logger.log(
         `Processing FeatureUpdated: Recording V${event.versionNumber} for feature ${event.featureId}`,
       );
-      // Create full snapshot version based on event payload
       await this.createVersionUseCase.createVersionSnapshot({
         featureId: event.featureId,
         versionNumber: event.versionNumber,
