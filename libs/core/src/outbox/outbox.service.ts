@@ -72,7 +72,7 @@ export class OutboxService {
   async publishEvent(
     tx: PrismaTransactionClient, // Prisma interactive transaction
     event: OutboxEvent,
-    schema = 'geometry',
+    schema = 'infrastructure',
   ): Promise<void> {
     await tx.$queryRawUnsafe(
       `INSERT INTO ${schema}.outbox
@@ -100,7 +100,7 @@ export class OutboxService {
   async fetchUnpublished(
     tx: PrismaTransactionClient,
     limit = 100,
-    schema = 'geometry',
+    schema = 'infrastructure',
   ): Promise<OutboxRecord[]> {
     return tx.$queryRawUnsafe(
       `SELECT id, event_type, aggregate_id, aggregate_type, payload,
@@ -120,7 +120,7 @@ export class OutboxService {
   async markPublished(
     tx: PrismaTransactionClient,
     eventIds: bigint[],
-    schema = 'geometry',
+    schema = 'infrastructure',
   ): Promise<void> {
     if (eventIds.length === 0) return;
 
@@ -139,7 +139,7 @@ export class OutboxService {
     tx: PrismaTransactionClient,
     event: OutboxRecord | Record<string, unknown>,
     errorMessage: string,
-    schema = 'geometry',
+    schema = 'infrastructure',
   ): Promise<void> {
     // 1. Insert into outbox_dlq
     await tx.$queryRawUnsafe(
@@ -170,7 +170,7 @@ export class OutboxService {
     tx: PrismaTransactionClient,
     eventId: bigint,
     errorMessage: string,
-    schema = 'geometry',
+    schema = 'infrastructure',
   ): Promise<void> {
     await tx.$queryRawUnsafe(
       `UPDATE ${schema}.outbox

@@ -27,6 +27,7 @@ export class GeoJsonGeometry {
     ],
     description: 'GeoJSON coordinates array',
   })
+  @IsArray()
   coordinates!: unknown;
 }
 

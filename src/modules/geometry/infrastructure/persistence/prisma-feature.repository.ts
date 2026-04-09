@@ -85,7 +85,7 @@ export class PrismaFeatureRepository implements IFeatureRepository {
 
         // Outbox event
         await tx.$queryRawUnsafe(
-          `INSERT INTO geometry.outbox (event_type, aggregate_id, payload, correlation_id)
+          `INSERT INTO infrastructure.outbox (event_type, aggregate_id, payload, correlation_id)
           VALUES ('FeatureCreated', $1::uuid, $2::jsonb, $3::uuid)`,
           savedRow.id,
           JSON.stringify({
@@ -159,7 +159,7 @@ export class PrismaFeatureRepository implements IFeatureRepository {
 
         // Outbox event
         await tx.$queryRawUnsafe(
-          `INSERT INTO geometry.outbox (event_type, aggregate_id, payload, correlation_id)
+          `INSERT INTO infrastructure.outbox (event_type, aggregate_id, payload, correlation_id)
           VALUES ('FeatureUpdated', $1::uuid, $2::jsonb, $3::uuid)`,
           savedRow.id,
           JSON.stringify({
@@ -227,7 +227,7 @@ export class PrismaFeatureRepository implements IFeatureRepository {
       );
 
       await tx.$queryRawUnsafe(
-        `INSERT INTO geometry.outbox (event_type, aggregate_id, payload, correlation_id)
+        `INSERT INTO infrastructure.outbox (event_type, aggregate_id, payload, correlation_id)
         VALUES ('FeatureDeleted', $1::uuid, $2::jsonb, $3::uuid)`,
         id,
         JSON.stringify({

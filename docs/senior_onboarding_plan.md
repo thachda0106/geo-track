@@ -26,11 +26,11 @@ Project được chia thành 4 context chính độc lập về mặt DB Schema 
 
 ### 🛡️ 1. Identity Module (`src/modules/identity`)
 *   **Trách nhiệm:** Quản lý Auth, Role (RBAC) và thông tin User. 
-*   **Lưu ý cho Senior:** Chú ý cách implementation JWT stateless, refresh-token rotation và rate limit (ngăn chặn brute-force).
+*   **Lưu ý cho Senior:** Chú ý cách implementation JWT stateless, **refresh-token rotation với cơ chế Theft Detection (thu hồi familyId theo cascade)**, và rate limit (ngăn chặn brute-force).
 
 ### 📐 2. Geometry Module (`src/modules/geometry`)
 *   **Trách nhiệm:** Quản lý các vector/polygon/point trên bản đồ. Sử dụng PostGIS cho các operations như Intersect, Contain, Buffer...
-*   **Lưu ý cho Senior:** Luồng xử lý Transactional Outbox. Khi lưu một Geometry mới, một event được tạo ra cùng transaction của DB và đẩy xuống bảng `outbox` để trigger versioning.
+*   **Lưu ý cho Senior:** Luồng xử lý Transactional Outbox. Khi lưu một Geometry mới, một event được tạo ra cùng transaction của DB và đẩy xuống bảng `infrastructure.outbox` để trigger versioning.
 
 ### ⏳ 3. Versioning Module (`src/modules/versioning`)
 *   **Trách nhiệm:** Là "Git" của hệ thống map. Lưu các snapshot, diff và timeline.
@@ -51,7 +51,7 @@ Là Senior, bạn nên review kỹ 3 mô hình kỹ thuật xương sống của
 
 > [!IMPORTANT]
 > **Transactional Outbox / Inbox Pattern**
-> System không ghi trực tiếp event vào Kafka sau khi commit DB (nguy cơ mất event). Thay vào đó, nó ghi event vào bảng `geometry.outbox` trong cùng Database Transaction. Thư mục `src/workers/outbox-worker.ts` sẽ poll hoặc listen changes để đẩy lên Kafka (Redpanda). Phía Consumer dùng Inbox Pattern chặn duplicate.
+> System không ghi trực tiếp event vào Kafka sau khi commit DB (nguy cơ mất event). Thay vào đó, nó ghi event vào bảng `infrastructure.outbox` (hoạt động độc lập module) trong cùng Database Transaction. Service `OutboxRelayService` sẽ poll hoặc listen changes để đẩy lên Kafka (Redpanda). Phía Consumer dùng Inbox Pattern (`infrastructure.inbox`) chặn duplicate.
 
 > [!TIP]
 > **High-Throughput Ingestion với TimescaleDB**
@@ -88,6 +88,7 @@ Dưới đây là action plan để bạn nắm bắt toàn bộ workflow của 
 - **Ngày 6 - 7: Tracking Ingestion & Kafka**
   - Mở `docs/system-knowledge/03_data_flow_streaming_redpanda.md` và `docs/system-knowledge/database_design_deep_dive.md`.
   - Review module `tracking` làm cách nào handle 50k RPS lúc peak load. Đặc biệt module áp dụng Kalman Filter.
+  - Review kịch bản Stress test bằng k6 nằm tại `test/load/` (`ingest.load.js` và `auth.load.js`).
   
 - **Ngày 8 - 9: WebSocket & Caching**
   - Đọc `docs/system-knowledge/real_time_layer_deep_dive.md`.

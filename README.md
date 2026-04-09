@@ -97,6 +97,7 @@ map-history/
 │
 ├── test/                          # Comprehensive testing suites
 │   ├── helpers/                   # Test utilities
+│   ├── load/                      # k6 stress and spike testing scripts
 │   ├── setup-containers.ts        # Testcontainers spinups (Pg/Redpanda)
 │   ├── *.e2e-spec.ts              # End-to-end tests
 │   └── *.integration.spec.ts      # Component Integration tests
@@ -117,6 +118,7 @@ map-history/
 | **Geometry** | Feature CRUD, PostGIS spatial ops | `geometry.*` | ✅ Clean Architecture (DDD + CQRS) |
 | **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` | ✅ Clean Architecture (DDD + CQRS) |
 | **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` | ✅ Clean Architecture (DDD + CQRS) |
+| **Infrastructure** | Cross-cutting data (Outbox, Inbox) | `infrastructure.*` | ✅ Dedicated Schema |
 
 See [Architecture Docs](./docs/) for detailed design.
 
@@ -129,6 +131,7 @@ See [Architecture Docs](./docs/) for detailed design.
 | `npm run test` | Run all unit tests |
 | `npm run test:integration` | Run integration tests (requires Docker) |
 | `npm run test:e2e` | Run end-to-end tests (requires Docker/Testcontainers) |
+| `npm run test:load` | Run k6 load test scripts (ingestion bounds, auth spikes) |
 | `npm run lint` | Fully compliant strict ESLint scanning |
 | `npm run docker:up` | Start infrastructure |
 | `npm run docker:down` | Stop infrastructure |

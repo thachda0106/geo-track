@@ -96,7 +96,7 @@ export class InboxService {
   ): Promise<boolean> {
     // Atomic claim: INSERT succeeds only if event_id doesn't exist yet
     const result = await this.prisma.$queryRawUnsafe<{ inserted: boolean }[]>(
-      `INSERT INTO versioning.inbox (event_id, event_type, processed_at)
+      `INSERT INTO infrastructure.inbox (event_id, event_type, processed_at)
        VALUES ($1::uuid, $2, NOW())
        ON CONFLICT (event_id) DO NOTHING
        RETURNING TRUE as inserted`,
@@ -127,7 +127,7 @@ export class InboxService {
         'InboxService',
       );
       await this.prisma.$queryRawUnsafe(
-        `DELETE FROM versioning.inbox WHERE event_id = $1::uuid`,
+        `DELETE FROM infrastructure.inbox WHERE event_id = $1::uuid`,
         eventId,
       );
       throw error;

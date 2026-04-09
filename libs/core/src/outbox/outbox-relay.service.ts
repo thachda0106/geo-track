@@ -34,13 +34,13 @@ export class OutboxRelayService {
     this.isRelaying = true;
 
     try {
-      // 1. Fetch unpublished events (polls 'geometry' schema outbox)
+      // 1. Fetch unpublished events (polls 'infrastructure' schema outbox)
       // Note: In a multi-schema setup, we'd poll all outboxes or have dedicated relays
       await this.prisma.$transaction(async (tx) => {
         const events = await this.outboxService.fetchUnpublished(
           tx,
           50,
-          'geometry',
+          'infrastructure',
         );
 
         if (events.length === 0) {
@@ -92,7 +92,7 @@ export class OutboxRelayService {
                 tx,
                 event,
                 error.message,
-                'geometry',
+                'infrastructure',
               );
               this.logger.warn(
                 `Event ${event.id} permanently failed and moved to DLQ after ${retryCount} retries.`,
@@ -102,7 +102,7 @@ export class OutboxRelayService {
                 tx,
                 event.id,
                 error.message,
-                'geometry',
+                'infrastructure',
               );
               failedIds.push(event.id); // Track so we can log it
             }
@@ -111,7 +111,7 @@ export class OutboxRelayService {
 
         // 3. Only mark successfully emitted events as published
         if (publishedIds.length > 0) {
-          await this.outboxService.markPublished(tx, publishedIds, 'geometry');
+          await this.outboxService.markPublished(tx, publishedIds, 'infrastructure');
         }
 
         if (failedIds.length > 0) {
@@ -140,7 +140,7 @@ export class OutboxRelayService {
     try {
       const result = await this.prisma.$queryRawUnsafe<{ count: bigint }[]>(
         `WITH deleted AS (
-          DELETE FROM geometry.outbox
+          DELETE FROM infrastructure.outbox
           WHERE published_at IS NOT NULL
             AND published_at < NOW() - INTERVAL '24 hours'
           RETURNING id

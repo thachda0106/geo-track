@@ -93,6 +93,16 @@ export class ForbiddenError extends DomainError {
   }
 }
 
+/** 401 — Authentication failed */
+export class UnauthorizedError extends DomainError {
+  readonly statusCode = HttpStatus.UNAUTHORIZED;
+  readonly errorCode = 'UNAUTHORIZED';
+
+  constructor(message = 'Authentication required') {
+    super(message);
+  }
+}
+
 /** 429 — Rate limit exceeded */
 export class RateLimitError extends DomainError {
   readonly statusCode = HttpStatus.TOO_MANY_REQUESTS;

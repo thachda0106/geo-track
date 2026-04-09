@@ -1,43 +1,27 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '@app/core';
-import { JwtService } from '@nestjs/jwt';
-import { Server } from 'http';
+import { E2ETestHarness } from './helpers/e2e-test-harness';
 
 describe('Feature Lifecycle (e2e) Vertical Slice', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  let jwtService: JwtService;
+  const harness = new E2ETestHarness();
   let adminToken: string;
   let testUserId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
-    await app.init();
-
-    prisma = app.get(PrismaService);
-    jwtService = app.get(JwtService);
+    await harness.setup();
 
     // 1. Setup Test Admin User
-    await prisma.$executeRawUnsafe(
+    await harness.prisma.$executeRawUnsafe(
       `DELETE FROM identity.users WHERE email = 'admin@test.com'`,
     );
-    const [user] = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    const [user] = await harness.prisma.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO identity.users (email, password_hash, display_name, role)
        VALUES ('admin@test.com', 'hash', 'Test Admin', 'admin')
        RETURNING id`,
     );
     testUserId = user.id;
 
-    // 2. Generate Token manually for bypassing actual login
-    adminToken = jwtService.sign({
+    // 2. Generate Token using the harness
+    adminToken = harness.generateToken({
       sub: testUserId,
       email: 'admin@test.com',
       role: 'admin',
@@ -45,16 +29,17 @@ describe('Feature Lifecycle (e2e) Vertical Slice', () => {
   });
 
   afterAll(async () => {
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM identity.users WHERE id = $1::uuid`,
-      testUserId,
-    );
-    await app.close();
+    await harness.teardown(async (prisma) => {
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM identity.users WHERE id = $1::uuid`,
+        testUserId,
+      );
+    });
   });
 
   it('should create a feature, relay the event, and record version 1 snapshot', async () => {
     // 1. Create a feature via HTTP (Geometry Module)
-    const createRes = await request(app.getHttpServer() as Server)
+    const createRes = await request(harness.server)
       .post('/features')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
@@ -69,6 +54,10 @@ describe('Feature Lifecycle (e2e) Vertical Slice', () => {
         tags: ['test'],
       });
 
+    if (createRes.status !== 201) {
+      console.log('CREATE RES BODY:', createRes.body);
+    }
+
     expect(createRes.status).toBe(201);
     expect(createRes.body.id).toBeDefined();
     expect(createRes.body.currentVersion).toBe(1);
@@ -79,7 +68,7 @@ describe('Feature Lifecycle (e2e) Vertical Slice', () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // 3. Verify Versioning Module consumed the event
-    const versionsRes = await request(app.getHttpServer() as Server)
+    const versionsRes = await request(harness.server)
       .get(`/features/${featureId}/versions`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class RegisterDto {
@@ -39,6 +39,22 @@ export class LoginDto {
   password!: string;
 }
 
+export class RefreshTokenDto {
+  @ApiProperty({
+    description: 'The refresh token received from login or a previous refresh',
+  })
+  @IsString()
+  refreshToken!: string;
+}
+
+export class LogoutDto {
+  @ApiProperty({
+    description: 'The refresh token to revoke (invalidates entire session)',
+  })
+  @IsString()
+  refreshToken!: string;
+}
+
 export class UserProfileDto {
   @ApiProperty({ example: '00000000-0000-0000-0000-000000000000' })
   id!: string;
@@ -56,6 +72,12 @@ export class UserProfileDto {
 export class AuthResponse {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   accessToken!: string;
+
+  @ApiPropertyOptional({
+    example: 'dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...',
+    description: 'Refresh token for obtaining new access tokens',
+  })
+  refreshToken?: string;
 
   @ApiProperty({ example: '15m' })
   expiresIn!: string;

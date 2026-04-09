@@ -18,6 +18,7 @@
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:integration": "jest --config ./test/jest-integration.json",
+    "test:load": "k6 run test/load/ingest.load.js",
     "db:migrate": "prisma migrate dev",
     "db:migrate:prod": "prisma migrate deploy",
     "db:seed": "ts-node prisma/seed.ts",

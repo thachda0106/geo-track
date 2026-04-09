@@ -9,6 +9,7 @@ import {
   PASSWORD_SERVICE,
 } from '../security/password.service';
 import { ITokenService, TOKEN_SERVICE } from '../security/token.service';
+import { RefreshTokenUseCase } from './refresh-token.use-case';
 import { ForbiddenError } from '@app/core';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class LoginUserUseCase {
     @Inject(PASSWORD_SERVICE)
     private readonly passwordService: IPasswordService,
     @Inject(TOKEN_SERVICE) private readonly tokenService: ITokenService,
+    private readonly refreshTokenUseCase: RefreshTokenUseCase,
   ) {}
 
   async execute(dto: LoginDto): Promise<AuthResponse> {
@@ -47,8 +49,12 @@ export class LoginUserUseCase {
 
     const tokenPayload = this.tokenService.generateAccessToken(user);
 
+    // Issue refresh token (creates a new token family)
+    const refreshToken = await this.refreshTokenUseCase.issueForLogin(user.id);
+
     return {
       accessToken: tokenPayload.accessToken,
+      refreshToken,
       expiresIn: tokenPayload.expiresIn,
       user: {
         id: user.id,
