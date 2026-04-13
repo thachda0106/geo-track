@@ -127,7 +127,7 @@ services:
     container_name: geotrack-pgbouncer
     restart: unless-stopped
     ports:
-      - "6432:6432"
+      - "6432:5432"
     environment:
       DATABASE_URL: postgres://geotrack:geotrack_dev@postgres:5432/geotrack
       POOL_MODE: transaction
@@ -160,8 +160,24 @@ services:
       - loki_data:/loki
 
   # ═══════════════════════════════════════════════════════
+  # Prometheus — Metrics Collection & Storage
+  # Scrapes GeoTrack /internal/metrics every 15s
+  # ═══════════════════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: geotrack-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./scripts/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ═══════════════════════════════════════════════════════
   # Grafana — Dashboards & Visualization
-  # Auto-provisions Loki as datasource
+  # Auto-provisions Loki + Prometheus as datasources
   # ═══════════════════════════════════════════════════════
   grafana:
     image: grafana/grafana:10.3.1
@@ -178,10 +194,12 @@ services:
       - ./scripts/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
     depends_on:
       - loki
+      - prometheus
 
 volumes:
   postgres_data:
   redis_data:
   redpanda_data:
   loki_data:
+  prometheus_data:
   grafana_data:

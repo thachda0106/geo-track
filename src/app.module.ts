@@ -1,6 +1,11 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import {
+  PrometheusModule,
+  makeCounterProvider,
+  makeHistogramProvider,
+} from '@willsoto/nestjs-prometheus';
 
 // Core library
 import {
@@ -16,6 +21,7 @@ import {
   RolesGuard,
   TimeoutInterceptor,
   CorrelationIdMiddleware,
+  HttpMetricsInterceptor,
 } from '@app/core';
 
 // Bounded Context Modules
@@ -38,15 +44,31 @@ import { ScheduleModule } from '@nestjs/schedule';
  *
  * Module Loading Order:
  * 1. AppConfigModule → validates env vars (fail fast)
- * 2. LoggerModule → structured logging available everywhere
- * 3. PrismaModule → database connection
- * 4. ResilienceModule → retry, timeout patterns
- * 5. OutboxModule → event-driven outbox/inbox
- * 6. HealthModule → liveness/readiness probes
- * 7. IdentityModule → auth (needed by other modules)
- * 8. GeometryModule → feature CRUD + spatial
- * 9. VersioningModule → version history
- * 10. TrackingModule → GPS tracking
+ * 2. LoggerModule → structured logging via nestjs-pino (pino-http + AsyncLocalStorage)
+ * 3. PrometheusModule → RED metrics collection
+ * 4. PrismaModule → database connection
+ * 5. ResilienceModule → retry, timeout patterns
+ * 6. OutboxModule → event-driven outbox/inbox
+ * 7. HealthModule → liveness/readiness probes + /metrics endpoint
+ * 8. IdentityModule → auth (needed by other modules)
+ * 9. GeometryModule → feature CRUD + spatial
+ * 10. VersioningModule → version history
+ * 11. TrackingModule → GPS tracking
+ *
+ * Observability Pipeline (request lifecycle):
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │ 1. CorrelationIdMiddleware  → extract/set X-Request-Id header  │
+ * │ 2. pino-http middleware     → create child logger with reqId   │
+ * │    (AsyncLocalStorage)        in AsyncLocalStorage scope       │
+ * │ 3. HttpMetricsInterceptor  → start timer, record RED metrics  │
+ * │ 4. JwtAuthGuard            → authenticate (@Public() bypasses)│
+ * │ 5. RolesGuard              → authorize roles                  │
+ * │ 6. TimeoutInterceptor      → enforce 30s timeout              │
+ * │ 7. Controller/Service      → business logic (all logs         │
+ * │                               auto-include reqId)             │
+ * │ 8. HttpErrorFilter         → catch errors, log with reqId,    │
+ * │                               return RFC 7807 Problem Details │
+ * └─────────────────────────────────────────────────────────────────┘
  */
 @Module({
   imports: [
@@ -57,6 +79,13 @@ import { ScheduleModule } from '@nestjs/schedule';
       delimiter: '.',
     }),
     ScheduleModule.forRoot(),
+
+    // ─── Observability & Metrics ───────────────────────
+    // Uses our custom MetricsController (in HealthModule) which has @Public()
+    // to bypass JWT auth for Prometheus scrapers
+    PrometheusModule.register({
+      defaultMetrics: { enabled: true },
+    }),
 
     // ─── Rate Limiting ─────────────────────────────────
     ThrottlerModule.forRoot([
@@ -80,6 +109,24 @@ import { ScheduleModule } from '@nestjs/schedule';
     TrackingModule,
   ],
   providers: [
+    // ─── RED Metrics (Counter + Histogram providers) ───
+    makeCounterProvider({
+      name: 'http_requests_total',
+      help: 'Total number of HTTP requests',
+      labelNames: ['method', 'route', 'status_code'],
+    }),
+    makeHistogramProvider({
+      name: 'http_request_duration_seconds',
+      help: 'HTTP request duration in seconds',
+      labelNames: ['method', 'route', 'status_code'],
+      buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+    }),
+    makeCounterProvider({
+      name: 'http_requests_errors_total',
+      help: 'Total number of HTTP error responses (4xx + 5xx)',
+      labelNames: ['method', 'route', 'status_code'],
+    }),
+
     // ─── Global Exception Filter ───────────────────────
     {
       provide: APP_FILTER,
@@ -98,6 +145,12 @@ import { ScheduleModule } from '@nestjs/schedule';
       useClass: RolesGuard,
     },
 
+    // ─── Global HTTP Metrics Interceptor ────────────────
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpMetricsInterceptor,
+    },
+
     // ─── Global Timeout Interceptor ────────────────────
     {
       provide: APP_INTERCEPTOR,
@@ -114,7 +167,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 export class AppModule implements NestModule {
   /**
    * Apply global middleware.
-   * Order matters: correlation ID first → then logging.
+   * Order matters: correlation ID first → then pino-http (auto-applied by nestjs-pino).
    */
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(CorrelationIdMiddleware).forRoutes('*');

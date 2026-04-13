@@ -24,9 +24,11 @@ export * from './auth/api-key.guard';
 
 // Middleware
 export * from './middleware/correlation-id.middleware';
+export * from './middleware/http-metrics.interceptor';
 
 // Health
 export * from './health/health.module';
+export * from './health/metrics.controller';
 
 // Database
 export * from './prisma/prisma.module';

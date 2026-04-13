@@ -2,24 +2,40 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import * as Sentry from '@sentry/nestjs';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import {
+  PrismaInstrumentation,
+  registerInstrumentations,
+} from '@prisma/instrumentation';
 import { AppModule } from './app.module';
-import { AppLoggerService } from '@app/core';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
+    // Buffer logs until nestjs-pino Logger is ready
+    // This prevents unstructured console.log during bootstrap
     bufferLogs: true,
   });
 
+  // ─── Use nestjs-pino as the application logger ──────
+  // From this point, ALL NestJS internal logs (module init, route mapping, etc.)
+  // will go through pino with structured JSON format
+  app.useLogger(app.get(Logger));
+
   // ─── Get services ────────────────────────────────────
   const configService = app.get(ConfigService);
-  const logger = app.get(AppLoggerService);
 
   // ─── Sentry Initialization ───────────────────────────
   const sentryDsn = configService.get<string>('SENTRY_DSN');
   if (sentryDsn) {
+    // Register Prisma OTel instrumentation BEFORE Sentry.init()
+    // so that Sentry's OTel bridge can capture Prisma/PostGIS query spans
+    registerInstrumentations({
+      instrumentations: [new PrismaInstrumentation()],
+    });
+
     Sentry.init({
       dsn: sentryDsn,
       integrations: [nodeProfilingIntegration()],
@@ -27,10 +43,10 @@ async function bootstrap() {
       profilesSampleRate: 0.1,
       environment: configService.get<string>('NODE_ENV'),
     });
-  }
 
-  // Use structured logger
-  app.useLogger(logger);
+    // Hook Sentry into the Connect/Express error handler chain
+    Sentry.setupConnectErrorHandler(app);
+  }
 
   // ─── Security ────────────────────────────────────────
   app.use(helmet());
@@ -50,7 +66,8 @@ async function bootstrap() {
   // ─── API Prefix ──────────────────────────────────────
   const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
   app.setGlobalPrefix(apiPrefix, {
-    exclude: ['health', 'health/ready'], // Health checks at root
+    // Infrastructure endpoints live at root — no API prefix
+    exclude: ['health', 'health/ready', 'metrics', 'internal/metrics'],
   });
 
   // ─── Validation Pipe (class-validator) ───────────────
@@ -87,11 +104,6 @@ async function bootstrap() {
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('docs', app, document);
-
-    logger.log(
-      `📚 Swagger docs: http://localhost:${configService.get('PORT')}/docs`,
-      'Bootstrap',
-    );
   }
 
   // ─── Graceful Shutdown ─────────────────────────────
@@ -103,12 +115,11 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 
-  logger.log(
-    `🚀 GeoTrack API running on http://localhost:${port}/${apiPrefix}`,
-    'Bootstrap',
-  );
-  logger.log(`🏥 Health check: http://localhost:${port}/health`, 'Bootstrap');
-  logger.log(`📊 Environment: ${configService.get('NODE_ENV')}`, 'Bootstrap');
+  const logger = app.get(Logger);
+  logger.log(`🚀 GeoTrack API running on http://localhost:${port}/${apiPrefix}`);
+  logger.log(`🏥 Health check: http://localhost:${port}/health`);
+  logger.log(`📊 Metrics: http://localhost:${port}/internal/metrics`);
+  logger.log(`📊 Environment: ${configService.get('NODE_ENV')}`);
 }
 
 bootstrap().catch((err) => {

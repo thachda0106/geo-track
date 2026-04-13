@@ -1,46 +1,35 @@
 import { Injectable, LoggerService } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import pino, { Logger } from 'pino';
+import { PinoLogger, InjectPinoLogger } from 'nestjs-pino';
 
 /**
- * Structured JSON logger built on Pino.
- * Injects correlationId into every log line for distributed tracing.
+ * Application Logger Service — wraps nestjs-pino's PinoLogger.
  *
- * Usage:
- *   this.logger.info('Feature created', { featureId, userId });
- *   this.logger.error('Failed to save', { error, correlationId });
+ * WHY this wrapper exists:
+ * - Implements NestJS LoggerService interface (used by app.useLogger())
+ * - Provides a stable API for the rest of the codebase
+ * - Under the hood, PinoLogger uses AsyncLocalStorage so every log
+ *   line automatically includes the request's correlationId (reqId)
+ *
+ * HOW correlationId auto-injection works:
+ * 1. HTTP request arrives
+ * 2. pino-http middleware (registered in LoggerModule) creates a child logger
+ *    with `reqId` bound from X-Request-Id header (or generated UUID)
+ * 3. That child logger is stored in AsyncLocalStorage for the request scope
+ * 4. When ANY service calls this.logger.info('...'), PinoLogger retrieves
+ *    the child logger from AsyncLocalStorage → reqId is automatically included
+ * 5. No need for developers to pass correlationId manually ever again
+ *
+ * Usage in any service:
+ *   constructor(private readonly logger: AppLoggerService) {}
+ *   this.logger.info('Feature created', { featureId });
+ *   // Output: {"level":"info","reqId":"abc-123","featureId":"...","msg":"Feature created"}
  */
 @Injectable()
 export class AppLoggerService implements LoggerService {
-  private readonly logger: Logger;
-
-  constructor(private readonly configService: ConfigService) {
-    const isPretty = this.configService.get<string>('LOG_PRETTY') === 'true';
-    const level = this.configService.get<string>('LOG_LEVEL') || 'info';
-
-    this.logger = pino({
-      level,
-      ...(isPretty
-        ? {
-            transport: {
-              target: 'pino-pretty',
-              options: {
-                colorize: true,
-                translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
-                ignore: 'pid,hostname',
-              },
-            },
-          }
-        : {
-            // Production: structured JSON, no transport overhead
-            formatters: {
-              level: (label: string) => ({ level: label }),
-              bindings: () => ({}),
-            },
-            timestamp: pino.stdTimeFunctions.isoTime,
-          }),
-    });
-  }
+  constructor(
+    @InjectPinoLogger(AppLoggerService.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   log(message: string, context?: string): void {
     this.logger.info({ context }, message);
@@ -67,10 +56,15 @@ export class AppLoggerService implements LoggerService {
   }
 
   /**
-   * Create a child logger with bound context (e.g., correlationId).
-   * Used by the correlation ID middleware.
+   * Assign additional context to the current request's logger.
+   * Useful for adding userId, tenantId, etc. after authentication.
+   *
+   * @example
+   * // In a guard or interceptor after auth:
+   * this.logger.assign({ userId: user.id, role: user.role });
+   * // All subsequent logs in this request will include userId and role
    */
-  child(bindings: Record<string, unknown>): Logger {
-    return this.logger.child(bindings);
+  assign(fields: Record<string, unknown>): void {
+    this.logger.assign(fields);
   }
 }

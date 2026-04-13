@@ -17,6 +17,12 @@ import { AppLoggerService } from '../logger/logger.service';
  * 1. DomainError → known business error → 4xx with details
  * 2. HttpException → NestJS errors (guards, pipes) → mapped status
  * 3. Unknown Error → bug → 500 with sanitized message
+ *
+ * Observability integration:
+ * - correlationId is automatically included in every log line
+ *   thanks to pino-http's AsyncLocalStorage (no manual passing needed)
+ * - correlationId is also included in the JSON response body
+ *   so clients can reference it when reporting issues
  */
 @Catch()
 export class HttpErrorFilter implements ExceptionFilter {
@@ -26,8 +32,12 @@ export class HttpErrorFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
+
+    // Read correlationId for the response body (logs get it automatically via pino-http)
     const correlationId =
-      (request.headers['x-request-id'] as string) || 'unknown';
+      request.correlationId ||
+      (request.headers['x-request-id'] as string) ||
+      'unknown';
 
     let problemDetails: ProblemDetails;
 
@@ -35,6 +45,7 @@ export class HttpErrorFilter implements ExceptionFilter {
       // ─── Known domain error ─────────────────────────
       problemDetails = toProblemDetails(exception, request.url, correlationId);
 
+      // correlationId is auto-injected by pino-http AsyncLocalStorage
       this.logger.warn(
         `Domain error: ${exception.errorCode} — ${exception.message}`,
         exception.name,
@@ -73,6 +84,7 @@ export class HttpErrorFilter implements ExceptionFilter {
         }));
       }
 
+      // correlationId auto-included in this log line by pino-http
       this.logger.warn(`HTTP exception: ${status} — ${exception.message}`);
     } else {
       // ─── Unknown error (bug) ────────────────────────
@@ -88,7 +100,7 @@ export class HttpErrorFilter implements ExceptionFilter {
         correlationId,
       };
 
-      // Log full stack trace for debugging
+      // Full stack trace logged with correlationId auto-injected
       this.logger.error(
         `Unhandled error: ${error.message}`,
         error.stack,
