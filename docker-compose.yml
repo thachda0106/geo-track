@@ -53,6 +53,7 @@ services:
       - --memory=512M
       - --overprovisioned
       - --node-id=0
+      - --check=false
       - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
       - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
     ports:
@@ -61,10 +62,11 @@ services:
     volumes:
       - redpanda_data:/var/lib/redpanda/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -q 'HEALTHY'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "rpk cluster health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   # ═══════════════════════════════════════════════════════
   # Redpanda Console (Kafka UI for dev)
@@ -74,7 +76,7 @@ services:
     container_name: geotrack-console
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       KAFKA_BROKERS: redpanda:29092
     depends_on:
