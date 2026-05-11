@@ -2,10 +2,12 @@ import { Folder } from '../entities/folder.entity';
 
 export interface PaginatedFolders {
   data: Folder[];
-  cursor: string | null;
-  hasMore: boolean;
-  limit: number;
-  total: number;
+  pagination: {
+    cursor: string | null;
+    hasMore: boolean;
+    limit: number;
+    total: number;
+  };
 }
 
 export interface FolderListQuery {

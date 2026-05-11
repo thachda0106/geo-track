@@ -24,7 +24,7 @@ export class DeleteFolderUseCase {
     const children = await this.folderRepo.findChildren(id);
     if (children.data.length > 0 && !recursive) {
       throw new Error(
-        `Folder has ${children.total} sub-folders. Use recursive=true to delete all contents.`,
+        `Folder has ${children.pagination.total} sub-folders. Use recursive=true to delete all contents.`,
       );
     }
 

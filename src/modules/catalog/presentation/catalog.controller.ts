@@ -113,6 +113,7 @@ export class CatalogController {
       featureCount: child.featureCount,
       hasChildren: child.level >= 0, // simplified: will be refined in full build
     }));
+    const pagination = childrenResult.pagination;
 
     return {
       ...this.toResponseDto(folder),

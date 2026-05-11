@@ -45,10 +45,12 @@ export class FolderPrismaRepository implements IFolderRepository {
 
     return {
       data,
-      cursor: hasMore ? (data[data.length - 1]?.id ?? null) : null,
-      hasMore,
-      limit,
-      total: Number(total[0]?.count ?? 0),
+      pagination: {
+        cursor: hasMore ? (data[data.length - 1]?.id ?? null) : null,
+        hasMore,
+        limit,
+        total: Number(total[0]?.count ?? 0),
+      },
     };
   }
 
@@ -87,10 +89,12 @@ export class FolderPrismaRepository implements IFolderRepository {
 
     return {
       data,
-      cursor: hasMore ? (data[data.length - 1]?.id ?? null) : null,
-      hasMore,
-      limit,
-      total: Number(total[0]?.count ?? 0),
+      pagination: {
+        cursor: hasMore ? (data[data.length - 1]?.id ?? null) : null,
+        hasMore,
+        limit,
+        total: Number(total[0]?.count ?? 0),
+      },
     };
   }
 
