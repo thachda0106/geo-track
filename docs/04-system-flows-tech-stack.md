@@ -823,6 +823,17 @@ services:
 
 ---
 
+### Catalog Module Flows (Added in v1.5)
+
+The **Catalog** module adds 6 additional system flows for file & folder management. These are fully documented with sequence diagrams, failure points, and retry strategies in the frontend documentation:
+
+- [Flow 1: Load Folder Tree](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-1-load-folder-tree-page-load)
+- [Flow 2: Create / Rename / Move Folder](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-2-create--rename--move-folder)
+- [Flow 3: Upload GIS File → Import as Features](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-3-upload-gis-file--import-as-features)
+- [Flow 4: Export Folder → GeoJSON Download](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-4-export-folder--geojson-download)
+- [Flow 5: Assign Feature(s) to Folder](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-5-assign-features-to-folder-drag--drop)
+- [Flow 6: Error Handling — Catalog Error Taxonomy](https://github.com/your-org/map-fe/docs/04-system-flows-tech-stack-file-management.md#flow-6-error-handling--complete-catalog-error-taxonomy)
+
 ## Connection to Next Phase
 
 **Phase 5: Platform Skeleton & Dev Setup** will:

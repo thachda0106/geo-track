@@ -29,6 +29,7 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { GeometryModule } from './modules/geometry/geometry.module';
 import { VersioningModule } from './modules/versioning/versioning.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 
 // Events & Scheduling
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -107,6 +108,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     GeometryModule,
     VersioningModule,
     TrackingModule,
+    CatalogModule,
   ],
   providers: [
     // ─── RED Metrics (Counter + Histogram providers) ───

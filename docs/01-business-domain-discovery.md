@@ -474,6 +474,13 @@ PROB ↓   ┌────────┬────────┬────
 
 ---
 
+### Extended Scope (v1.5)
+
+The platform was extended with a **Catalog** bounded context for file and folder management. See:
+- [File Management — Phase 1](../map-fe/docs/01-business-domain-discovery-file-management.md) — Vision, journeys, MVP scope for the Catalog feature
+- Adds a **Data Manager** persona to the existing 4 personas
+- Introduces 6 new user journeys (folder CRUD, file import, export, drag-assign)
+
 ## Connection to Next Phase
 
 **Phase 2: Architecture & Domain Design** will use:

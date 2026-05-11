@@ -6,7 +6,7 @@
 
 ### Prerequisites
 
-- **Node.js** 20+ LTS
+- **Node.js** 22+ LTS
 - **Docker** & **Docker Compose** (for PostgreSQL, Redis, Kafka)
 - **npm** 10+
 
@@ -123,7 +123,7 @@ map-history/
 │           └── tracking.module.ts
 │
 ├── prisma/
-│   └── schema.prisma              # Multi-schema (identity, geometry, versioning, tracking)
+│   └── schema.prisma              # Multi-schema (identity, geometry, versioning, tracking, catalog)
 │
 ├── test/                          # Comprehensive testing suites
 │   ├── helpers/                   # Test utilities
@@ -140,7 +140,7 @@ map-history/
 
 ## 🏗️ Architecture
 
-**Modular Monolith** with 4 bounded contexts. 
+**Modular Monolith** with 5 bounded contexts. 
 *Note: The platform is currently undergoing a refactoring phase to migrate from a traditional n-tier structure towards **Clean Architecture / Domain-Driven Design (DDD)**.*
 
 | Module | Responsibility | Database Schema | Architecture Status |
@@ -149,6 +149,7 @@ map-history/
 | **Geometry** | Feature CRUD, PostGIS spatial ops | `geometry.*` | ✅ Clean Architecture (DDD + CQRS) |
 | **Versioning** | Snapshots, diffs, timeline, revert | `versioning.*` | ✅ Clean Architecture (DDD + CQRS) |
 | **Tracking** | GPS sessions, TimescaleDB locations | `tracking.*` | ✅ Clean Architecture (DDD + CQRS) |
+| **Catalog** | File & folder management, import/export | `catalog.*` | ✅ Clean Architecture (DDD) |
 | **Infrastructure** | Cross-cutting data (Outbox, Inbox) | `infrastructure.*` | ✅ Dedicated Schema |
 
 See [Architecture Docs](./docs/) for detailed design.
@@ -166,7 +167,8 @@ See [Architecture Docs](./docs/) for detailed design.
 | `npm run lint` | Fully compliant strict ESLint scanning |
 | `npm run docker:up` | Start infrastructure |
 | `npm run docker:down` | Stop infrastructure |
-| `npm run db:migrate` | Run database migrations |
+| `npm run db:migrate` | Create & apply new dev migration (`prisma migrate dev`) |
+| `npm run db:migrate:prod` | Apply pending migrations in production (`prisma migrate deploy`) |
 | `npm run db:seed` | Seed sample data |
 | `npm run db:studio` | Open Prisma Studio |
 
@@ -174,7 +176,7 @@ See [Architecture Docs](./docs/) for detailed design.
 
 | Layer | Technology |
 |-------|-----------|
-| Runtime | Node.js 20 LTS + TypeScript |
+| Runtime | Node.js 22+ LTS + TypeScript |
 | Framework | NestJS 11 |
 | Database | PostgreSQL 16 + PostGIS 3.4 |
 | Time-Series | TimescaleDB |
@@ -185,3 +187,12 @@ See [Architecture Docs](./docs/) for detailed design.
 | Auth | JWT (Passport) |
 | Logging | Pino (structured JSON) |
 | Docs | Swagger (OpenAPI 3.0) |
+
+## 📚 Related Documentation
+
+| Document | Description |
+|----------|-------------|
+| [File Management — Phase 1](../map-fe/docs/01-business-domain-discovery-file-management.md) | Business & domain discovery for File & Folder Management |
+| [File Management — Architecture](../map-fe/docs/02-architecture-domain-design-file-management.md) | Catalog module architecture, RBAC, ADRs |
+| [File Management — API Contracts](../map-fe/docs/03-data-api-contract-design-file-management.md) | OpenAPI spec, DDL, Zod schemas |
+| [File Management — System Flows](../map-fe/docs/04-system-flows-tech-stack-file-management.md) | 6 E2E flow diagrams for folder CRUD, import, export |

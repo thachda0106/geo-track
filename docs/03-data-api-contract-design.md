@@ -23,6 +23,7 @@ Design ALL data models, API contracts, and event schemas BEFORE writing code. **
 | Geometry | PostgreSQL + PostGIS (`geometry` schema) | Spatial indexes (GiST), spatial functions | Redis (feature cache) |
 | Versioning | PostgreSQL (`versioning` schema) | Relational, strong consistency, JSONB for snapshots | — |
 | Tracking | TimescaleDB (`tracking` schema) | Time-series partitioning, compression, retention | Redis (latest position cache) |
+| **Catalog** | **PostgreSQL (`catalog` schema)** | **Relational, folder hierarchy (materialized path + adjacency list), GIN indexes** | **—** |
 | Shared | — | — | Redis (rate limiter, pub/sub) |
 
 ---

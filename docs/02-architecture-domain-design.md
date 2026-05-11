@@ -56,6 +56,20 @@ DeviceOfflineDetected   { sessionId, deviceId, lastSeenAt, timestamp }
 DeviceReconnected       { sessionId, deviceId, bufferedPointCount, timestamp }
 ```
 
+#### Catalog Context Events (added in v1.5)
+```
+FolderCreated            { folderId, name, parentId, ownerId, timestamp }
+FolderRenamed            { folderId, oldName, newName, timestamp }
+FolderMoved              { folderId, oldParentId, newParentId, timestamp }
+FolderDeleted            { folderId, affectedChildren, affectedFeatures, timestamp }
+FeatureAssignedToFolder  { featureId, folderId, assignedBy, timestamp }
+FileImportStarted        { jobId, folderId, fileName, fileSizeBytes, timestamp }
+FileImportCompleted      { jobId, folderId, featuresCreated, featuresFailed, durationMs, timestamp }
+FileImportFailed         { jobId, folderId, fileName, error, timestamp }
+FolderExportRequested    { folderId, requestedBy, timestamp }
+FolderExportCompleted    { jobId, folderId, featureCount, fileSizeBytes, durationMs, timestamp }
+```
+
 ### 1.2 Event-to-Context Mapping
 
 ```
@@ -80,6 +94,17 @@ SessionStarted              ─┐
 LocationReceived             ├───→  Tracking Context
 SessionEnded                 │
 TrackSegmentCompleted       ─┘
+
+FolderCreated               ─┐
+FolderRenamed                ├───→  Catalog Context
+FolderMoved                  │      (added in v1.5)
+FolderDeleted                │
+FeatureAssignedToFolder      │
+FileImportStarted            │
+FileImportCompleted          │
+FileImportFailed             │
+FolderExportRequested        │
+FolderExportCompleted       ─┘
 ```
 
 ---
@@ -92,31 +117,28 @@ TrackSegmentCompleted       ─┘
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         GeoTrack Platform                           │
 │                                                                     │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
-│  │   Identity    │    │   Geometry    │    │     Tracking         │  │
-│  │   Context     │    │   Context     │    │     Context          │  │
-│  │              │    │              │    │                      │  │
-│  │  Users       │    │  Features    │    │  Sessions            │  │
-│  │  Roles       │    │  Geometries  │    │  Tracks              │  │
-│  │  Auth        │    │  Spatial Ops │    │  LocationPoints      │  │
-│  └──────┬───────┘    └──────┬───────┘    └──────────┬───────────┘  │
-│         │                   │                       │              │
-│         │          events   │            events     │              │
-│         │         ┌─────────▼──────────┐            │              │
-│         │         │   Versioning       │            │              │
-│         │         │   Context          │            │              │
-│         │         │                    │            │              │
-│         │         │   Versions         │            │              │
-│         │         │   Changesets       │            │              │
-│         │         │   Diffs            │            │              │
-│         │         └────────────────────┘            │              │
-│         │                                           │              │
-│         └───────────────┬───────────────────────────┘              │
-│                         │                                          │
-│              ┌──────────▼───────────┐                              │
-│              │   Realtime Gateway    │  (infrastructure, not BC)   │
-│              │   WebSocket + PubSub  │                              │
-│              └──────────────────────┘                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────────────┐  │
+│  │   Identity    │    │   Geometry    │    │   Catalog     │    │     Tracking         │  │
+│  │   Context     │    │   Context     │    │   Context     │    │     Context          │  │
+│  │              │    │              │    │   (NEW v1.5)  │    │                      │  │
+│  │  Users       │    │  Features    │    │  Folders      │    │  Sessions            │  │
+│  │  Roles       │    │  Geometries  │    │  Import       │    │  Tracks              │  │
+│  │  Auth        │    │  Spatial Ops │    │  Export       │    │  LocationPoints      │  │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘    └──────────┬───────────┘  │
+│         │                   │                   │                       │              │
+│         │          events   │            events │            events     │              │
+│         │         ┌─────────▼──────────────────▼──────────┐            │              │
+│         │         │          Versioning Context            │            │              │
+│         │         │                                        │            │              │
+│         │         │   Versions / Changesets / Diffs        │            │              │
+│         │         └──────────────────┬─────────────────────┘            │              │
+│         │                            │                                  │              │
+│         └────────────────┬───────────┴──────────────────────┘              │
+│                          │                                                │
+│               ┌──────────▼───────────┐                                    │
+│               │   Realtime Gateway    │  (infrastructure, not BC)         │
+│               │   WebSocket + PubSub  │                                    │
+│               └──────────────────────┘                                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -730,6 +752,7 @@ sequenceDiagram
 | **Identity Service** | User CRUD, authentication, JWT signing, RBAC | PostgreSQL (users, tokens) | Horizontal (stateless after JWT) | Retry with backoff on DB |
 | **Geometry Service** | Feature CRUD, spatial operations, validation | PostgreSQL + PostGIS (features) | Horizontal (read replicas for queries) | Circuit breaker, timeout on spatial ops |
 | **Versioning Service** | Version storage, diff computation, timeline, revert | PostgreSQL (versions, changesets) | Horizontal (event consumer scaling) | Idempotent event processing, DLQ |
+| **Catalog Service** | Folder CRUD, feature assignment, file import/export | PostgreSQL (catalog.*) | Horizontal (stateless) | Retry with backoff on DB, cycle detection on moves |
 | **Tracking Service** | GPS ingestion, noise filtering, session management | TimescaleDB (location_points) | Horizontal (Kafka consumer groups) | Back-pressure, rate limiting, DLQ |
 | **Realtime Gateway** | WebSocket management, channel subscriptions, push | Redis (pub/sub) | Horizontal (sticky sessions + Redis adapter) | Reconnection with backoff |
 | **Tracking Ingestion** | HTTP endpoint for device location submission | None (writes to Kafka) | Horizontal (stateless) | Rate limiting per device |
@@ -891,7 +914,7 @@ Tracking data is time-series: ordered by time, append-only, queried by time rang
 **Status**: Accepted
 
 **Context**:  
-The domain model defines 4 bounded contexts. Pure microservices would create 4-6 separate services each with its own database, deployment pipeline, and operational overhead. For a solo developer or small team, this is premature.
+The domain model defines 5 bounded contexts. Pure microservices would create 5-7 separate services each with its own database, deployment pipeline, and operational overhead. For a solo developer or small team, this is premature.
 
 **Decision**: **Modular Monolith** with these exceptions:
 1. **Tracking Ingestion**: Separate process (different scaling profile — 50K writes/sec vs 10 reads/sec)
@@ -1091,6 +1114,13 @@ sequenceDiagram
 | Service catalog with resilience patterns | ✅ 7 services, 8 resilience configs |
 
 ---
+
+### Catalog Module
+
+The **Catalog** bounded context was added in v1.5 for file and folder management. See:
+- [File Management Architecture](../map-fe/docs/02-architecture-domain-design-file-management.md) — Folder hierarchy, RBAC, ADRs
+- [File Management Contracts](../map-fe/docs/03-data-api-contract-design-file-management.md) — OpenAPI spec, DDL
+- [File Management Flows](../map-fe/docs/04-system-flows-tech-stack-file-management.md) — 6 E2E flow diagrams
 
 ## Connection to Next Phase
 

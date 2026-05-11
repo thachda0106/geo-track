@@ -219,6 +219,12 @@ to run the full stack in containers.
 
 ---
 
+### Catalog Module
+
+The **Catalog** module was added in v1.5. It follows the same DDD pattern as existing modules. See:
+- [File Management Skeleton](../map-fe/docs/05-platform-skeleton-file-management.md) — Module structure, Prisma schema, dev setup
+- [File Management ADRs](../map-fe/docs/adr/ADR-001-folder-tree-lazy-loading.md) — Frontend ADRs for catalog components
+
 ## Connection to Next Phase
 
 **Phase 6 (CI/CD Pipeline)** — Automate build, test, and deploy:

@@ -5,7 +5,7 @@ This document outlines the architectural decisions and implementation steps that
 ## 1. System Architecture: Modular Monolith
 To balance speed of development with future scalable extraction into microservices, we structured the NestJS server as a **Modular Monolith**:
 - A single deployable container.
-- Cleanly separated, bounded context modules (Identity, Geometry, Versioning, Tracking).
+- Cleanly separated, bounded context modules (Identity, Geometry, Versioning, Tracking, Catalog).
 - Internal messaging via `EventEmitter2` combined with an `Outbox/Inbox` pattern to enforce eventual consistency between modules without tight coupling.
 
 ## 2. Shared Core Foundation (`@app/core`)
@@ -41,6 +41,15 @@ To build robust event-driven workflows where different modules react to changes 
 ### 4.4. Telemetry (Tracking Module)
 - Handles raw ping arrays uploaded by IoT units.
 - Utilizes caching/redis components before ultimately pushing arrays of point-in-time entries down to PostgreSQL via bulk Prisma writes.
+
+### 4.5. File & Folder Management (Catalog Module)
+- **Added in v1.5** — provides hierarchical folder organization for geospatial features.
+- Implements a **hybrid folder model** (adjacency list + materialized path) for fast breadcrumbs and subtree queries.
+- **File import pipeline**: Upload GeoJSON/CSV → parse → insert features with `ST_GeomFromGeoJSON` → record import job.
+- **Folder export pipeline**: Query features by `folder_id` → build GeoJSON FeatureCollection → stream download.
+- Strategy pattern for file parsers: `GeoJsonParser`, `CsvParser` with pluggable `IFileParser` interface.
+- Uses `pg_trgm` extension for GIN index on folder materialized path for fast subtree lookups.
+- See [File Management docs](../map-fe/docs/05-platform-skeleton-file-management.md) for full module structure.
 
 ## 5. Testing Strategy
 - **Unit Testing**: Tests domain services with mock adapters isolating side-effects.
