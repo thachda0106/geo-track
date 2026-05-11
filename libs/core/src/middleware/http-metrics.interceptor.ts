@@ -65,7 +65,10 @@ export class HttpMetricsInterceptor implements NestInterceptor {
           this.requestCounter.inc({ method, route, status_code: statusCode });
 
           // Duration: observe latency
-          this.requestDuration.observe({ method, route, status_code: statusCode }, duration);
+          this.requestDuration.observe(
+            { method, route, status_code: statusCode },
+            duration,
+          );
 
           // Errors: count 4xx and 5xx
           if (res.statusCode >= 400) {
@@ -73,11 +76,18 @@ export class HttpMetricsInterceptor implements NestInterceptor {
           }
         },
         error: (err: { status?: number; getStatus?: () => number }) => {
-          const statusCode = (err?.status || err?.getStatus?.() || 500).toString();
+          const statusCode = (
+            err?.status ||
+            err?.getStatus?.() ||
+            500
+          ).toString();
           const duration = (Date.now() - startTime) / 1000;
 
           this.requestCounter.inc({ method, route, status_code: statusCode });
-          this.requestDuration.observe({ method, route, status_code: statusCode }, duration);
+          this.requestDuration.observe(
+            { method, route, status_code: statusCode },
+            duration,
+          );
           this.errorCounter.inc({ method, route, status_code: statusCode });
         },
       }),

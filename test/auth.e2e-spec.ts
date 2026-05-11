@@ -73,9 +73,7 @@ describe('Authentication Flows (e2e)', () => {
 
   describe('JWT Protection (/identity/profile)', () => {
     it('should reject unauthenticated requests to protected routes', async () => {
-      await request(harness.server)
-        .get('/identity/profile')
-        .expect(401);
+      await request(harness.server).get('/identity/profile').expect(401);
     });
 
     it('should return profile for authenticated requests', async () => {

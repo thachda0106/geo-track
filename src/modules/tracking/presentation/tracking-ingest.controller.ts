@@ -1,18 +1,7 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { IngestLocationDto } from '../application/dtos/tracking.dto';
 import { Public, UseApiKey } from '@app/core';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 import { IngestLocationsUseCase } from '../application/use-cases/ingest-locations.use-case';
 

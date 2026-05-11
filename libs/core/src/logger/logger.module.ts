@@ -32,14 +32,18 @@ import { AppLoggerService } from './logger.service';
             level,
 
             // ─── Correlation ID: link X-Request-Id header to every log ───
-            genReqId: (req: { headers: Record<string, string | string[] | undefined> }) => {
-              return (req.headers['x-request-id'] as string) || crypto.randomUUID();
+            genReqId: (req: {
+              headers: Record<string, string | string[] | undefined>;
+            }) => {
+              return (
+                (req.headers['x-request-id'] as string) || crypto.randomUUID()
+              );
             },
 
             // ─── Inject correlationId into every log line ───
             // genReqId stores ID as req.id; customProps surfaces it as "correlationId"
             // so it's always visible in both pretty and JSON output
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             customProps: (req: any) => ({
               correlationId: String(req.id ?? ''),
             }),
@@ -69,7 +73,11 @@ import { AppLoggerService } from './logger.service';
             },
 
             // ─── Custom log message format ───
-            customLogLevel: (_req: unknown, res: { statusCode: number }, err?: Error) => {
+            customLogLevel: (
+              _req: unknown,
+              res: { statusCode: number },
+              err?: Error,
+            ) => {
               if (err || res.statusCode >= 500) return 'error';
               if (res.statusCode >= 400) return 'warn';
               return 'info';

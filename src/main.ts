@@ -116,7 +116,9 @@ async function bootstrap() {
   await app.listen(port);
 
   const logger = app.get(Logger);
-  logger.log(`🚀 GeoTrack API running on http://localhost:${port}/${apiPrefix}`);
+  logger.log(
+    `🚀 GeoTrack API running on http://localhost:${port}/${apiPrefix}`,
+  );
   logger.log(`🏥 Health check: http://localhost:${port}/health`);
   logger.log(`📊 Metrics: http://localhost:${port}/internal/metrics`);
   logger.log(`📊 Environment: ${configService.get('NODE_ENV')}`);

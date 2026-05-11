@@ -111,7 +111,11 @@ export class OutboxRelayService {
 
         // 3. Only mark successfully emitted events as published
         if (publishedIds.length > 0) {
-          await this.outboxService.markPublished(tx, publishedIds, 'infrastructure');
+          await this.outboxService.markPublished(
+            tx,
+            publishedIds,
+            'infrastructure',
+          );
         }
 
         if (failedIds.length > 0) {
